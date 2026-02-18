@@ -850,287 +850,288 @@ function UserDashboard({ user, userData, setView }) {
     setDownloadingItemId(null);
   };
 
-  // O proprietário do arquivo pode visualizar sem restrições
-  const token = await user.getIdToken();
-  const previewUrl = `${API_URL}/preview/${item.id}?token=${token}`;
-  const extension = item.name.split('.').pop().toLowerCase();
-  let contentType = 'unsupported';
+  const handlePreview = async (item) => {
+    // O proprietário do arquivo pode visualizar sem restrições
+    const token = await user.getIdToken();
+    const previewUrl = `${API_URL}/preview/${item.id}?token=${token}`;
+    const extension = item.name.split('.').pop().toLowerCase();
+    let contentType = 'unsupported';
 
-  if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(extension)) {
-    contentType = 'image';
-  } else if (extension === 'pdf') {
-    contentType = 'pdf';
-  }
-
-  setPreviewContent({ url: previewUrl, type: contentType, name: item.name });
-  setShowPreviewModal(true);
-  setOpenMenuId(null); // Fecha o menu de ações
-};
-
-
-const downloadFolder = async (folder) => {
-  if (downloadingItemId) return;
-  setDownloadingItemId(folder.id);
-  try {
-    const res = await fetchWithAuth(`${API_URL}/download-folder`, {
-      method: 'POST',
-      body: JSON.stringify({
-        userId: user.uid,
-        folderId: folder.id,
-        folderName: folder.name
-      })
-    });
-    if (!res.ok) {
-      const errData = await res.json();
-      throw new Error(errData.error || "Falha no download da pasta");
+    if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(extension)) {
+      contentType = 'image';
+    } else if (extension === 'pdf') {
+      contentType = 'pdf';
     }
-    const blob = await res.blob();
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${folder.name}.zip`;
-    document.body.appendChild(a); a.click(); a.remove();
-    window.URL.revokeObjectURL(url);
-  } catch (e) { alert(`Erro ao descarregar pasta: ${e.message}`); }
-  setDownloadingItemId(null);
-};
 
-const shareFolderContentsRecursively = async (folder) => {
-  if (!confirm(`Tem certeza de que deseja tornar PÚBLICA a pasta "${folder.name}" e todo o seu conteúdo? Esta ação não pode ser desfeita em massa.`)) return;
+    setPreviewContent({ url: previewUrl, type: contentType, name: item.name });
+    setShowPreviewModal(true);
+    setOpenMenuId(null); // Fecha o menu de ações
+  };
 
-  setOpenMenuId(null);
-  // TODO: Adicionar um estado de loading visual para o utilizador
 
-  const itemsToUpdate = [];
-
-  // Função auxiliar para encontrar todos os descendentes
-  const findDescendants = async (folderId) => {
-    const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'items'), where('parentId', '==', folderId), where('userId', '==', user.uid));
-    const snapshot = await getDocs(q);
-
-    for (const docSnap of snapshot.docs) {
-      itemsToUpdate.push(docSnap.ref);
-      if (docSnap.data().type === 'folder') {
-        await findDescendants(docSnap.id);
+  const downloadFolder = async (folder) => {
+    if (downloadingItemId) return;
+    setDownloadingItemId(folder.id);
+    try {
+      const res = await fetchWithAuth(`${API_URL}/download-folder`, {
+        method: 'POST',
+        body: JSON.stringify({
+          userId: user.uid,
+          folderId: folder.id,
+          folderName: folder.name
+        })
+      });
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || "Falha no download da pasta");
       }
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${folder.name}.zip`;
+      document.body.appendChild(a); a.click(); a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (e) { alert(`Erro ao descarregar pasta: ${e.message}`); }
+    setDownloadingItemId(null);
+  };
+
+  const shareFolderContentsRecursively = async (folder) => {
+    if (!confirm(`Tem certeza de que deseja tornar PÚBLICA a pasta "${folder.name}" e todo o seu conteúdo? Esta ação não pode ser desfeita em massa.`)) return;
+
+    setOpenMenuId(null);
+    // TODO: Adicionar um estado de loading visual para o utilizador
+
+    const itemsToUpdate = [];
+
+    // Função auxiliar para encontrar todos os descendentes
+    const findDescendants = async (folderId) => {
+      const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'items'), where('parentId', '==', folderId), where('userId', '==', user.uid));
+      const snapshot = await getDocs(q);
+
+      for (const docSnap of snapshot.docs) {
+        itemsToUpdate.push(docSnap.ref);
+        if (docSnap.data().type === 'folder') {
+          await findDescendants(docSnap.id);
+        }
+      }
+    };
+
+    try {
+      // Adicionar a própria pasta à lista de atualização
+      const rootFolderRef = doc(db, 'artifacts', appId, 'public', 'data', 'items', folder.id);
+      itemsToUpdate.push(rootFolderRef);
+
+      await findDescendants(folder.id);
+
+      if (itemsToUpdate.length > 499) {
+        alert("Esta pasta é muito grande para compartilhar de uma só vez. Por favor, compartilhe as subpastas individualmente.");
+        return;
+      }
+
+      const batch = writeBatch(db);
+      itemsToUpdate.forEach(itemRef => {
+        batch.update(itemRef, { isPublic: true });
+      });
+      await batch.commit();
+
+      logAction('make_item_public', {
+        performedBy: userData.username,
+        itemName: folder.name,
+        details: `Pasta e ${itemsToUpdate.length - 1} sub-itens tornados públicos`
+      });
+      alert(`A pasta "${folder.name}" e todo o seu conteúdo foram compartilhados com sucesso.`);
+    } catch (err) {
+      console.error("Erro ao compartilhar pasta recursivamente:", err);
+      alert("Ocorreu um erro ao compartilhar a pasta.");
     }
   };
 
-  try {
-    // Adicionar a própria pasta à lista de atualização
-    const rootFolderRef = doc(db, 'artifacts', appId, 'public', 'data', 'items', folder.id);
-    itemsToUpdate.push(rootFolderRef);
-
-    await findDescendants(folder.id);
-
-    if (itemsToUpdate.length > 499) {
-      alert("Esta pasta é muito grande para compartilhar de uma só vez. Por favor, compartilhe as subpastas individualmente.");
-      return;
-    }
-
-    const batch = writeBatch(db);
-    itemsToUpdate.forEach(itemRef => {
-      batch.update(itemRef, { isPublic: true });
-    });
-    await batch.commit();
-
-    logAction('make_item_public', {
-      performedBy: userData.username,
-      itemName: folder.name,
-      details: `Pasta e ${itemsToUpdate.length - 1} sub-itens tornados públicos`
-    });
-    alert(`A pasta "${folder.name}" e todo o seu conteúdo foram compartilhados com sucesso.`);
-  } catch (err) {
-    console.error("Erro ao compartilhar pasta recursivamente:", err);
-    alert("Ocorreu um erro ao compartilhar a pasta.");
-  }
-};
-
-return (
-  <div style={{ maxWidth: '72rem', margin: '0 auto', padding: '1rem' }} className="md-p-8">
-    <header style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1.5rem', marginBottom: '2.5rem' }} className="md-flex-row md-items-center">
-      <div style={{ width: '100%' }} className="md-w-auto">
-        <h1 style={{ fontSize: '1.875rem', fontWeight: '900', letterSpacing: '-0.025em' }}>Meus Arquivos</h1>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginTop: '0.5rem' }}>
-          <div style={{ width: '8rem', backgroundColor: 'var(--app-border)', height: '0.375rem', borderRadius: '9999px', overflow: 'hidden' }}>
-            <div style={{ backgroundColor: 'var(--app-primary)', height: '100%', width: `${Math.min(100, (userData.usedSpace / userData.storageLimit) * 100)}%` }}></div>
+  return (
+    <div style={{ maxWidth: '72rem', margin: '0 auto', padding: '1rem' }} className="md-p-8">
+      <header style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1.5rem', marginBottom: '2.5rem' }} className="md-flex-row md-items-center">
+        <div style={{ width: '100%' }} className="md-w-auto">
+          <h1 style={{ fontSize: '1.875rem', fontWeight: '900', letterSpacing: '-0.025em' }}>Meus Arquivos</h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginTop: '0.5rem' }}>
+            <div style={{ width: '8rem', backgroundColor: 'var(--app-border)', height: '0.375rem', borderRadius: '9999px', overflow: 'hidden' }}>
+              <div style={{ backgroundColor: 'var(--app-primary)', height: '100%', width: `${Math.min(100, (userData.usedSpace / userData.storageLimit) * 100)}%` }}></div>
+            </div>
+            <span style={{ fontSize: '0.625rem', color: '#64748b', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              {(userData.usedSpace / 1024 / 1024).toFixed(1)} / {(userData.storageLimit / 1024 / 1024).toFixed(0)} MB
+            </span>
           </div>
-          <span style={{ fontSize: '0.625rem', color: '#64748b', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            {(userData.usedSpace / 1024 / 1024).toFixed(1)} / {(userData.storageLimit / 1024 / 1024).toFixed(0)} MB
-          </span>
         </div>
-      </div>
 
-      <div style={{ display: 'flex', gap: '0.5rem', width: '100%', alignItems: 'center', flexWrap: 'wrap' }} className="md-w-auto">
-        {showSearchInput && (
-          <input
-            ref={searchInputRef}
-            type="text"
-            placeholder="Pesquisar arquivos ou pastas..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            onBlur={() => { if (!searchTerm) setShowSearchInput(false); }}
-            className="login-input"
-            style={{ padding: '0.5rem 1rem', borderRadius: '0.75rem', border: '1px solid var(--app-border)', flex: 1, minWidth: '200px', animation: 'slideInDown 0.3s ease-out' }}
-          />
-        )}
-        {!showSearchInput && (
-          <button onClick={() => setShowSearchInput(true)} className="btn btn-secondary" style={{ padding: '0.75rem' }} title="Pesquisar">
-            <Search size={20} />
+        <div style={{ display: 'flex', gap: '0.5rem', width: '100%', alignItems: 'center', flexWrap: 'wrap' }} className="md-w-auto">
+          {showSearchInput && (
+            <input
+              ref={searchInputRef}
+              type="text"
+              placeholder="Pesquisar arquivos ou pastas..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              onBlur={() => { if (!searchTerm) setShowSearchInput(false); }}
+              className="login-input"
+              style={{ padding: '0.5rem 1rem', borderRadius: '0.75rem', border: '1px solid var(--app-border)', flex: 1, minWidth: '200px', animation: 'slideInDown 0.3s ease-out' }}
+            />
+          )}
+          {!showSearchInput && (
+            <button onClick={() => setShowSearchInput(true)} className="btn btn-secondary" style={{ padding: '0.75rem' }} title="Pesquisar">
+              <Search size={20} />
+            </button>
+          )}
+          {userData.role === 'admin' && (
+            <button onClick={() => setView('admin')} className="btn btn-secondary" style={{ padding: '0.75rem' }}>
+              <Shield size={20} style={{ color: 'var(--app-primary)' }} />
+            </button>
+          )}
+          <label className="btn btn-primary md-flex-none" style={{ flex: '1', padding: '0.75rem 1.5rem', borderRadius: '1rem', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05), 0 10px 15px -3px rgba(59,130,246,0.1)', cursor: 'pointer' }}>
+            <UploadCloud size={18} /> Carregar <input ref={fileInputRef} type="file" multiple style={{ display: 'none' }} onChange={uploadFile} />
+          </label>
+          <button onClick={createFolder} className="btn btn-secondary" style={{ padding: '0.75rem 1.5rem', borderRadius: '1rem' }}>
+            <Plus size={18} /> Pasta
           </button>
-        )}
-        {userData.role === 'admin' && (
-          <button onClick={() => setView('admin')} className="btn btn-secondary" style={{ padding: '0.75rem' }}>
-            <Shield size={20} style={{ color: 'var(--app-primary)' }} />
-          </button>
-        )}
-        <label className="btn btn-primary md-flex-none" style={{ flex: '1', padding: '0.75rem 1.5rem', borderRadius: '1rem', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05), 0 10px 15px -3px rgba(59,130,246,0.1)', cursor: 'pointer' }}>
-          <UploadCloud size={18} /> Carregar <input ref={fileInputRef} type="file" multiple style={{ display: 'none' }} onChange={uploadFile} />
-        </label>
-        <button onClick={createFolder} className="btn btn-secondary" style={{ padding: '0.75rem 1.5rem', borderRadius: '1rem' }}>
-          <Plus size={18} /> Pasta
-        </button>
-        <button onClick={() => signOut(auth)} className="btn-danger" style={{ padding: '0.75rem' }}>
-          <LogOut size={20} />
-        </button>
-      </div>
-    </header>
-
-    {/* Breadcrumbs Melhorados */}
-    <nav style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', marginBottom: '2rem', fontSize: '0.875rem', overflowX: 'auto', paddingBottom: '0.5rem', paddingTop: '0.5rem' }} className="no-scrollbar">
-      {breadcrumbs.map((c, i) => (
-        <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', flexShrink: '0' }}>
-          {i > 0 && <ChevronRight size={14} style={{ color: '#cbd5e1' }} />}
-          <button
-            onClick={() => { setBreadcrumbs(breadcrumbs.slice(0, i + 1)); setCurrentFolder(c.id); }}
-            className={i === breadcrumbs.length - 1 ? "bg-slate-900 text-white font-bold" : "text-slate-500 font-medium"}
-            onMouseOver={(e) => { if (i !== breadcrumbs.length - 1) e.currentTarget.style.backgroundColor = 'var(--app-border-light)'; }}
-            onMouseOut={(e) => { if (i !== breadcrumbs.length - 1) e.currentTarget.style.backgroundColor = 'transparent'; }}
-            style={{
-              ...(i === breadcrumbs.length - 1 ? { backgroundColor: 'var(--app-text-dark)', color: 'white', fontWeight: '700' } : { color: '#64748b', fontWeight: '500' }),
-              padding: '0.375rem 0.75rem',
-              borderRadius: '0.75rem',
-              transition: 'background-color 0.2s ease-in-out, color 0.2s ease-in-out',
-              border: 'none',
-              cursor: 'pointer'
-            }}
-          >
-            {c.name}
+          <button onClick={() => signOut(auth)} className="btn-danger" style={{ padding: '0.75rem' }}>
+            <LogOut size={20} />
           </button>
         </div>
-      ))}
-    </nav>
+      </header>
 
-    {isUploading && (
-      <div style={{ padding: '1.25rem', backgroundColor: 'var(--app-bg-subtle)', border: '1px solid #bfdbfe', color: '#1d4ed8', borderRadius: '1rem', marginBottom: '2rem', animation: 'pulse 2s infinite', display: 'flex', alignItems: 'center', gap: '1rem', fontWeight: '700', fontSize: '0.875rem', boxShadow: 'inset 0 2px 4px 0 rgba(0, 0, 0, 0.06)' }} className="animate-slide-in-down">
-        <Loader2 className="animate-spin" style={{ animation: 'rotateLoad 2s linear infinite' }} /> Transferindo arquivo para o disco local...
-      </div>
-    )}
-
-    {items.length === 0 && !isUploading ? ( /* flex flex-col items-center justify-center py-24 border-4 border-dashed border-slate-100 rounded-[3rem] */
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '6rem 0', border: '4px dashed var(--app-border)', borderRadius: '3rem' }}>
-        <div style={{ backgroundColor: 'var(--app-border-light)', padding: '1.5rem', borderRadius: '9999px', marginBottom: '1.5rem', color: '#e2e8f0' }}><Search size={64} /></div>
-        <p style={{ color: 'var(--app-text-medium)', fontWeight: '700' }}>Nenhum arquivo nesta pasta</p>
-      </div>
-    ) : filteredItems.length === 0 && searchTerm ? (
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '6rem 0', border: '4px dashed var(--app-border)', borderRadius: '3rem' }}>
-        <div style={{ backgroundColor: 'var(--app-border-light)', padding: '1.5rem', borderRadius: '9999px', marginBottom: '1.5rem', color: '#e2e8f0' }}><Search size={64} /></div>
-        <p style={{ color: 'var(--app-text-medium)', fontWeight: '700' }}>Nenhum resultado para "{searchTerm}"</p>
-      </div>
-    ) : (
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '1.5rem' }} className="sm-grid-cols-3 lg-grid-cols-4 xl-grid-cols-5">
-        {filteredItems.map((item, index) => (
-          <div
-            key={item.id}
-            className={`card ${glassEffect} animate-fade-in-up`}
-            style={{ display: 'flex', flexDirection: 'column', height: '240px', animationDelay: `${index * 50}ms`, cursor: 'pointer' }}
-            onClick={() => {
-              if (item.type === 'folder') {
-                navigateToItem(item);
-              } else {
-                handlePreview(item);
-              }
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem', minHeight: '70px' }}>
-              <div
-                className={item.type === 'folder' ? 'bg-amber-100 text-amber-600' : 'bg-blue-100 text-blue-700'}
-                style={{ padding: '1rem', borderRadius: '1rem', boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)', zIndex: 1, flexShrink: 0 }}>
-                {getIconForItem(item)}
-              </div>
-
-              <div className="card-actions" style={{ marginLeft: 'auto', flexShrink: 0 }}>
-                <button onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === item.id ? null : item.id); }}>
-                  <MoreVertical size={16} />
-                </button>
-              </div>
-
-              {openMenuId === item.id && (
-                <div className="dropdown-menu" ref={menuRef}>
-                  {item.type === 'file' && (
-                    <>
-                      <button onClick={(e) => { e.stopPropagation(); handlePreview(item); }}>
-                        <Eye size={14} />
-                        <span>Visualizar</span>
-                      </button>
-                      <button onClick={(e) => { e.stopPropagation(); downloadFile(item); }}>
-                        {downloadingItemId === item.id ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
-                        <span>{downloadingItemId === item.id ? 'Baixando...' : 'Baixar'}</span>
-                      </button>
-                    </>
-                  )}
-                  {item.type === 'folder' && (
-                    <>
-                      <button onClick={(e) => { e.stopPropagation(); downloadFolder(item); }}>
-                        {downloadingItemId === item.id ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
-                        <span>{downloadingItemId === item.id ? 'A baixar...' : 'Baixar Pasta (.zip)'}</span>
-                      </button>
-                      <button onClick={(e) => { e.stopPropagation(); shareFolderContentsRecursively(item); }}>
-                        <Share2 size={14} />
-                        <span>Compartilhar Tudo</span>
-                      </button>
-                    </>
-                  )}
-                  <button onClick={(e) => { e.stopPropagation(); togglePublic(item); }}>
-                    {item.isPublic ? <Globe size={14} /> : <Lock size={14} />}
-                    <span>{item.isPublic ? 'Deixar Privado' : 'Compartilhar'}</span>
-                  </button>
-                  {item.isPublic && (
-                    <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(`${window.location.origin}${window.location.pathname}?share=${item.id}`); alert("Link de partilha copiado!"); setOpenMenuId(null); }}>
-                      <Copy size={14} />
-                      <span>Copiar Link</span>
-                    </button>
-                  )}
-                  <button onClick={(e) => { e.stopPropagation(); deleteItem(item); }} className="danger">
-                    <Trash2 size={14} />
-                    <span>Apagar</span>
-                  </button>
-                </div>
-              )}
-            </div>
-
-            <div style={{ marginTop: 'auto' }}>
-              <h3 style={{ fontWeight: '700', color: 'var(--app-text-dark)', fontSize: '0.875rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: '0.25rem', transition: 'color 0.2s ease-in-out' }} className="group-hover-text-blue-600" title={item.name}>
-                {item.name}
-              </h3>
-              <p style={{ fontSize: '0.625rem', color: 'var(--app-text-medium)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                {item.type === 'folder' ? 'Pasta' : `${(item.size / 1024).toFixed(1)} KB`}
-              </p>
-            </div>
+      {/* Breadcrumbs Melhorados */}
+      <nav style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', marginBottom: '2rem', fontSize: '0.875rem', overflowX: 'auto', paddingBottom: '0.5rem', paddingTop: '0.5rem' }} className="no-scrollbar">
+        {breadcrumbs.map((c, i) => (
+          <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', flexShrink: '0' }}>
+            {i > 0 && <ChevronRight size={14} style={{ color: '#cbd5e1' }} />}
+            <button
+              onClick={() => { setBreadcrumbs(breadcrumbs.slice(0, i + 1)); setCurrentFolder(c.id); }}
+              className={i === breadcrumbs.length - 1 ? "bg-slate-900 text-white font-bold" : "text-slate-500 font-medium"}
+              onMouseOver={(e) => { if (i !== breadcrumbs.length - 1) e.currentTarget.style.backgroundColor = 'var(--app-border-light)'; }}
+              onMouseOut={(e) => { if (i !== breadcrumbs.length - 1) e.currentTarget.style.backgroundColor = 'transparent'; }}
+              style={{
+                ...(i === breadcrumbs.length - 1 ? { backgroundColor: 'var(--app-text-dark)', color: 'white', fontWeight: '700' } : { color: '#64748b', fontWeight: '500' }),
+                padding: '0.375rem 0.75rem',
+                borderRadius: '0.75rem',
+                transition: 'background-color 0.2s ease-in-out, color 0.2s ease-in-out',
+                border: 'none',
+                cursor: 'pointer'
+              }}
+            >
+              {c.name}
+            </button>
           </div>
         ))}
-      </div>
-    )}
-    <PreviewModal
-      show={showPreviewModal}
-      content={previewContent}
-      onClose={() => {
-        setShowPreviewModal(false);
-        setPreviewContent(null);
-      }}
-    />
-  </div>
-);
+      </nav>
+
+      {isUploading && (
+        <div style={{ padding: '1.25rem', backgroundColor: 'var(--app-bg-subtle)', border: '1px solid #bfdbfe', color: '#1d4ed8', borderRadius: '1rem', marginBottom: '2rem', animation: 'pulse 2s infinite', display: 'flex', alignItems: 'center', gap: '1rem', fontWeight: '700', fontSize: '0.875rem', boxShadow: 'inset 0 2px 4px 0 rgba(0, 0, 0, 0.06)' }} className="animate-slide-in-down">
+          <Loader2 className="animate-spin" style={{ animation: 'rotateLoad 2s linear infinite' }} /> Transferindo arquivo para o disco local...
+        </div>
+      )}
+
+      {items.length === 0 && !isUploading ? ( /* flex flex-col items-center justify-center py-24 border-4 border-dashed border-slate-100 rounded-[3rem] */
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '6rem 0', border: '4px dashed var(--app-border)', borderRadius: '3rem' }}>
+          <div style={{ backgroundColor: 'var(--app-border-light)', padding: '1.5rem', borderRadius: '9999px', marginBottom: '1.5rem', color: '#e2e8f0' }}><Search size={64} /></div>
+          <p style={{ color: 'var(--app-text-medium)', fontWeight: '700' }}>Nenhum arquivo nesta pasta</p>
+        </div>
+      ) : filteredItems.length === 0 && searchTerm ? (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '6rem 0', border: '4px dashed var(--app-border)', borderRadius: '3rem' }}>
+          <div style={{ backgroundColor: 'var(--app-border-light)', padding: '1.5rem', borderRadius: '9999px', marginBottom: '1.5rem', color: '#e2e8f0' }}><Search size={64} /></div>
+          <p style={{ color: 'var(--app-text-medium)', fontWeight: '700' }}>Nenhum resultado para "{searchTerm}"</p>
+        </div>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '1.5rem' }} className="sm-grid-cols-3 lg-grid-cols-4 xl-grid-cols-5">
+          {filteredItems.map((item, index) => (
+            <div
+              key={item.id}
+              className={`card ${glassEffect} animate-fade-in-up`}
+              style={{ display: 'flex', flexDirection: 'column', height: '240px', animationDelay: `${index * 50}ms`, cursor: 'pointer' }}
+              onClick={() => {
+                if (item.type === 'folder') {
+                  navigateToItem(item);
+                } else {
+                  handlePreview(item);
+                }
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem', minHeight: '70px' }}>
+                <div
+                  className={item.type === 'folder' ? 'bg-amber-100 text-amber-600' : 'bg-blue-100 text-blue-700'}
+                  style={{ padding: '1rem', borderRadius: '1rem', boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)', zIndex: 1, flexShrink: 0 }}>
+                  {getIconForItem(item)}
+                </div>
+
+                <div className="card-actions" style={{ marginLeft: 'auto', flexShrink: 0 }}>
+                  <button onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === item.id ? null : item.id); }}>
+                    <MoreVertical size={16} />
+                  </button>
+                </div>
+
+                {openMenuId === item.id && (
+                  <div className="dropdown-menu" ref={menuRef}>
+                    {item.type === 'file' && (
+                      <>
+                        <button onClick={(e) => { e.stopPropagation(); handlePreview(item); }}>
+                          <Eye size={14} />
+                          <span>Visualizar</span>
+                        </button>
+                        <button onClick={(e) => { e.stopPropagation(); downloadFile(item); }}>
+                          {downloadingItemId === item.id ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+                          <span>{downloadingItemId === item.id ? 'Baixando...' : 'Baixar'}</span>
+                        </button>
+                      </>
+                    )}
+                    {item.type === 'folder' && (
+                      <>
+                        <button onClick={(e) => { e.stopPropagation(); downloadFolder(item); }}>
+                          {downloadingItemId === item.id ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+                          <span>{downloadingItemId === item.id ? 'A baixar...' : 'Baixar Pasta (.zip)'}</span>
+                        </button>
+                        <button onClick={(e) => { e.stopPropagation(); shareFolderContentsRecursively(item); }}>
+                          <Share2 size={14} />
+                          <span>Compartilhar Tudo</span>
+                        </button>
+                      </>
+                    )}
+                    <button onClick={(e) => { e.stopPropagation(); togglePublic(item); }}>
+                      {item.isPublic ? <Globe size={14} /> : <Lock size={14} />}
+                      <span>{item.isPublic ? 'Deixar Privado' : 'Compartilhar'}</span>
+                    </button>
+                    {item.isPublic && (
+                      <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(`${window.location.origin}${window.location.pathname}?share=${item.id}`); alert("Link de partilha copiado!"); setOpenMenuId(null); }}>
+                        <Copy size={14} />
+                        <span>Copiar Link</span>
+                      </button>
+                    )}
+                    <button onClick={(e) => { e.stopPropagation(); deleteItem(item); }} className="danger">
+                      <Trash2 size={14} />
+                      <span>Apagar</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <div style={{ marginTop: 'auto' }}>
+                <h3 style={{ fontWeight: '700', color: 'var(--app-text-dark)', fontSize: '0.875rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: '0.25rem', transition: 'color 0.2s ease-in-out' }} className="group-hover-text-blue-600" title={item.name}>
+                  {item.name}
+                </h3>
+                <p style={{ fontSize: '0.625rem', color: 'var(--app-text-medium)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  {item.type === 'folder' ? 'Pasta' : `${(item.size / 1024).toFixed(1)} KB`}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      <PreviewModal
+        show={showPreviewModal}
+        content={previewContent}
+        onClose={() => {
+          setShowPreviewModal(false);
+          setPreviewContent(null);
+        }}
+      />
+    </div>
+  );
 }
 
 function SharedView({ itemId }) {
