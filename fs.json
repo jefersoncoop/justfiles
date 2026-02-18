@@ -1,0 +1,8 @@
+const firebaseConfig = {
+  apiKey: "AIzaSyCp-JchdlKdapL9Nud1j0PpCUtwYGDFS4Q",
+  authDomain: "justfiles-b2fe9.firebaseapp.com",
+  projectId: "justfiles-b2fe9",
+  storageBucket: "justfiles-b2fe9.firebasestorage.app",
+  messagingSenderId: "921976405171",
+  appId: "1:921976405171:web:833289bce4d368155e44c6"
+};

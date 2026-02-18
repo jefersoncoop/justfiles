@@ -1,0 +1,552 @@
+/* Paleta de Cores Principal */
+:root {
+  --app-primary: #3B82F6;
+  --app-primary-dark: #2563eb;
+  --app-bg-light: #F0F9FF;
+  --app-bg-subtle: #E0F2FE;
+  --app-white: #FFFFFF;
+  --app-text-dark: #1e293b;
+  --app-text-medium: #64748b;
+  --app-text-light: #94a3b8;
+  --app-border: #e2e8f0;
+  --app-border-light: #f1f5f9;
+  
+  /* Cores de Status */
+  --app-error: #ef4444;
+  --app-error-light: #fef2f2;
+  --app-warning: #fbbf24;
+  --app-warning-light: #fffbeb;
+  --app-success: #22c55e;
+  --app-success-light: #f0fdf4;
+}
+
+html, body, #root { height: 100%; margin: 0; }
+
+body {
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  color: var(--app-text-dark);
+  background-color: var(--app-bg-light);
+  background-image:
+      radial-gradient(circle at 100% 0, var(--app-bg-subtle) 0, var(--app-bg-subtle) 15%, transparent 15%),
+      radial-gradient(circle at 0 100%, var(--app-bg-subtle) 0, var(--app-bg-subtle) 15%, transparent 15%);
+}
+
+/* Reset básico e estilos globais para o escopo do login */
+.login-scope * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+.login-scope {
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    padding: 1rem; /* Padding para telas pequenas */
+}
+
+/* Card Centralizado */
+.login-scope .login-card {
+    background-color: var(--app-white);
+    border-radius: 24px; /* Bordas arredondadas */
+    padding: 2.5rem; /* Espaçamento interno */
+    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.08), 0 5px 15px rgba(0, 0, 0, 0.04); /* Sombras suaves */
+    max-width: 420px; /* Largura máxima */
+    width: 100%;
+    text-align: center;
+    position: relative;
+    z-index: 1;
+}
+
+/* Header do Card */
+.login-scope .login-header {
+    margin-bottom: 2rem;
+}
+
+.login-scope .login-logo {
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    width: 60px;
+    height: 60px;
+    background: linear-gradient(to bottom right, var(--app-primary), var(--app-primary-dark));
+    border-radius: 16px;
+    color: var(--app-white);
+    margin-bottom: 1rem;
+    box-shadow: 0 8px 16px rgba(59, 130, 246, 0.2); /* Sombra para o logo */
+}
+
+.login-scope .login-logo svg {
+    width: 32px;
+    height: 32px;
+}
+
+.login-scope .login-title {
+    font-size: 2rem;
+    font-weight: 800;
+    margin-bottom: 0.5rem;
+    color: var(--app-text-dark);
+}
+
+.login-scope .login-subtitle {
+    font-size: 0.95rem;
+    color: var(--app-text-medium);
+}
+
+/* Formulário */
+.login-scope .login-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.login-scope .input-group {
+    position: relative;
+}
+
+.login-scope .login-input {
+    width: 100%;
+    padding: 0.85rem 1rem;
+    border: 1px solid var(--app-border);
+    border-radius: 12px; /* Bordas arredondadas para inputs */
+    font-size: 1rem;
+    color: var(--app-text-dark);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    outline: none;
+}
+
+.login-scope .login-input::placeholder {
+    color: var(--app-text-medium);
+    opacity: 0.7;
+}
+
+.login-scope .login-input:focus {
+    border-color: var(--app-primary);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2); /* Efeito de foco azul */
+}
+
+.login-scope .input-group .icon {
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--app-text-medium);
+    pointer-events: none; /* Garante que o ícone não interfere com o input */
+}
+
+.login-scope .login-input.with-icon {
+    padding-left: 3rem; /* Espaço para o ícone */
+}
+
+
+/* Animação de pulso para ecrãs de carregamento */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* Opções (Manter conectado, Esqueci minha senha) */
+.login-scope .login-options {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.9rem;
+    margin-top: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.login-scope .remember-me {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--app-text-medium);
+}
+
+.login-scope .remember-me .checkbox {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--app-primary); /* Cor do checkbox */
+}
+
+.login-scope .forgot-password {
+    color: var(--app-primary);
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+
+.login-scope .forgot-password:hover {
+    color: var(--app-primary-dark);
+    text-decoration: underline;
+}
+
+/* Botão de Ação */
+.login-scope .login-button {
+    width: 100%;
+    padding: 1rem 1.5rem;
+    background-color: var(--app-primary);
+    color: var(--app-white);
+    border: none;
+    border-radius: 12px;
+    font-size: 1.1rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+    box-shadow: 0 8px 16px rgba(59, 130, 246, 0.2); /* Sombra para o botão */
+}
+
+.login-scope .login-button:hover {
+    background-color: var(--app-primary-dark);
+    transform: translateY(-2px); /* Efeito de "levantar" */
+    box-shadow: 0 12px 20px rgba(59, 130, 246, 0.3);
+}
+
+.login-scope .login-button:active {
+    transform: translateY(0);
+    box-shadow: 0 5px 10px rgba(59, 130, 246, 0.2);
+}
+
+/* Rodapé do Card */
+.login-scope .login-footer {
+    margin-top: 2rem;
+    font-size: 0.9rem;
+    color: var(--app-text-medium);
+}
+
+/* Links */
+.login-scope .signup-link {
+    color: var(--app-primary);
+    text-decoration: none;
+    font-weight: 600;
+    transition: color 0.2s ease;
+}
+
+.login-scope .signup-link:hover {
+    color: var(--app-primary-dark);
+    text-decoration: underline;
+}
+
+/* Responsividade básica */
+@media (max-width: 480px) {
+    .login-scope .login-card {
+        padding: 1.5rem;
+        border-radius: 16px;
+    }
+    .login-scope .login-title {
+        font-size: 1.75rem;
+    }
+    .login-scope .login-button {
+        padding: 0.9rem 1.25rem;
+        font-size: 1rem;
+    }
+    .login-scope .login-options {
+        flex-direction: column;
+        gap: 0.75rem;
+        align-items: flex-start;
+    }
+}
+
+/* Small helpers */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* Glass effect */
+.glass-effect {
+  /* O efeito de vidro será substituído por um card opaco para consistência */
+  background-color: var(--app-white);
+}
+
+/* Botões */
+.btn {
+  padding: 0.75rem 1.25rem; /* px-5 py-2.5 */
+  border-radius: 1rem; /* rounded-2xl */
+  font-weight: 700; /* font-bold */
+  transition: all 0.2s ease-in-out;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+
+.btn-primary {
+  background-color: var(--app-primary);
+  color: var(--app-white);
+  box-shadow: 0 8px 16px rgba(59, 130, 246, 0.2);
+}
+.btn-primary:hover {
+  background-color: var(--app-primary-dark);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 20px rgba(59, 130, 246, 0.3);
+}
+.btn-primary:active {
+  transform: translateY(0);
+  box-shadow: 0 5px 10px rgba(59, 130, 246, 0.2);
+}
+
+.btn-secondary {
+  background-color: var(--app-white);
+  border: 1px solid var(--app-border);
+  color: var(--app-text-dark);
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); /* shadow-sm */
+}
+.btn-secondary:hover {
+  background-color: var(--app-border-light);
+}
+
+.btn-danger {
+  background-color: var(--app-error-light);
+  color: var(--app-error);
+  border-radius: 1rem; /* rounded-2xl */
+  padding: 0.75rem; /* p-3 */
+}
+.btn-danger:hover {
+  background-color: var(--app-error-light); /* red-100 */
+}
+
+/* Campos de entrada */
+.input-field {
+  width: 100%;
+  padding: 0.75rem 1rem; /* pl-4 pr-10 py-3 */
+  border-radius: 12px;
+  border: 1px solid var(--app-border);
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.input-field:focus {
+  border-color: var(--app-primary);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2); /* focus:ring-2 focus:ring-blue-200 */
+}
+
+/* Estilos de cartão/item */
+.card {
+  padding: 1rem; /* p-4 */
+  border-radius: 20px;
+  transition: all 0.2s ease-in-out;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  border: 1px solid transparent;
+  background-color: var(--app-white);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+.card:hover {
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  transform: translateY(-4px);
+  border-color: var(--app-primary);
+}
+
+/* Estilos para o menu de ações do cartão */
+.card .card-actions {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  opacity: 0;
+  transition: opacity 0.2s ease-in-out;
+  z-index: 5;
+}
+
+.card:hover .card-actions {
+  opacity: 1;
+}
+
+.card-actions button {
+  background-color: rgba(255, 255, 255, 0.7);
+  border: 1px solid var(--app-border);
+  border-radius: 0.5rem;
+  padding: 0.25rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+.card-actions button:hover {
+  background-color: white;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: 3rem;
+  right: 1rem;
+  background-color: white;
+  border-radius: 0.75rem;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  border: 1px solid var(--app-border);
+  z-index: 10;
+  width: 180px;
+  padding: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.dropdown-menu button {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+  border: none;
+  background-color: transparent;
+  text-align: left;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  color: var(--app-text-dark);
+}
+
+.dropdown-menu button:hover {
+  background-color: var(--app-border-light);
+}
+
+.dropdown-menu button.danger:hover {
+  background-color: var(--app-error-light);
+  color: var(--app-error);
+}
+
+/* Classes utilitárias para texto e cores de fundo */
+.text-primary { color: var(--app-primary); }
+.text-red { color: var(--app-error); }
+.text-slate-400 { color: var(--app-text-medium); }
+.text-slate-500 { color: #64748b; } /* specific slate-500 */
+.text-slate-600 { color: #475569; } /* specific slate-600 */
+.text-slate-800 { color: #1e293b; } /* specific slate-800 */
+.bg-slate-50 { background-color: var(--app-bg-light); }
+.bg-blue-50 { background-color: #eff6ff; } /* specific blue-50 */
+.bg-red-50 { background-color: var(--app-error-light); }
+.bg-amber-100 { background-color: var(--app-warning-light); }
+.bg-blue-100 { background-color: #dbeafe; } /* specific blue-100 */
+.bg-slate-100 { background-color: var(--app-border-light); }
+.bg-slate-200 { background-color: var(--app-border); }
+.bg-slate-900 { background-color: var(--app-text-dark); }
+
+/* Flex utilities */
+.flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.flex-col-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+/* ========== ANIMAÇÕES DE CARREGAMENTO E TRANSIÇÕES ========== */
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    opacity: 1;
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7);
+  }
+  50% {
+    opacity: 0.9;
+    box-shadow: 0 0 0 10px rgba(59, 130, 246, 0);
+  }
+}
+
+@keyframes rotateLoad {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* Classes de animação reutilizáveis */
+.animate-fade-in-up {
+  animation: fadeInUp 0.6s ease-out;
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.5s ease-out;
+}
+
+.animate-slide-in-down {
+  animation: slideInDown 0.5s ease-out;
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.4s ease-out;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s infinite;
+}
+
+.animate-rotate {
+  animation: rotateLoad 2s linear infinite;
+}
+
+/* Transições suaves globais */
+* {
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+button {
+  transition: all 0.3s ease;
+}
+
+button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+}
+
+button:active {
+  transform: translateY(0);
+}
