@@ -1188,6 +1188,13 @@ function SharedView({ itemId }) {
     loadRootSharedItem();
   }, [itemId]);
 
+  // Atualizar o título da página com o nome do arquivo/pasta
+  useEffect(() => {
+    if (rootSharedItem?.name) {
+      document.title = rootSharedItem.name;
+    }
+  }, [rootSharedItem]);
+
   // Efeito para carregar itens quando currentFolderId muda (para navegação em pastas)
   useEffect(() => {
     if (!currentFolderId || rootSharedItem?.type === 'file') {
