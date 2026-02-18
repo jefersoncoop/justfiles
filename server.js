@@ -3,7 +3,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const cors = require('cors');
-const admin = require('firebase-admin'); 
+const admin = require('firebase-admin');
 const archiver = require('archiver');
 const mime = require('mime-types');
 const rateLimit = require('express-rate-limit');
@@ -165,38 +165,29 @@ app.use(limiter);
 // ========================================================
 // SEGURANÇA: Middleware de autenticação com Firebase token
 // ========================================================
+// ========================================================
+// SEGURANÇA: Middleware de autenticação (Opcional por padrão)
+// ========================================================
 const authenticateToken = async (req, res, next) => {
   try {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
 
     if (!token) {
-      logger.warn('Tentativa sem token', {
-        type: 'SECURITY',
-        ip: req.ip,
-        path: req.path
-      });
-      return res.status(401).json({ error: 'Autenticação necessária' });
+      req.userId = null;
+      return next();
     }
 
     try {
       const decodedToken = await admin.auth().verifyIdToken(token);
       req.userId = decodedToken.uid;
       req.userEmail = decodedToken.email;
-      
-      logger.info('Autenticação bem-sucedida', {
-        userId: req.userId,
-        email: req.userEmail
-      });
       next();
     } catch (error) {
-      logger.warn('Token inválido ou expirado', {
-        type: 'SECURITY',
-        ip: req.ip,
-        email: req.userEmail || 'desconhecido',
-        error: error.message
-      });
-      return res.status(403).json({ error: 'Autenticação falhou' });
+      // Se o token for inválido, não barramos aqui, apenas limpamos o userId
+      // Rotas protegidas usarão o requireAuth para barrar.
+      req.userId = null;
+      next();
     }
   } catch (error) {
     logger.error('Erro na autenticação', {
@@ -205,6 +196,19 @@ const authenticateToken = async (req, res, next) => {
     });
     res.status(500).json({ error: 'Erro no servidor' });
   }
+};
+
+// Middleware para rotas que EXIGEM autenticação
+const requireAuth = (req, res, next) => {
+  if (!req.userId) {
+    logger.warn('Acesso negado: Autenticação necessária', {
+      type: 'SECURITY',
+      ip: req.ip,
+      path: req.path
+    });
+    return res.status(401).json({ error: 'Autenticação necessária' });
+  }
+  next();
 };
 
 // ========================================================
@@ -269,7 +273,7 @@ const storage = multer.diskStorage({
 // Filtro de arquivo (validação)
 const fileFilter = (req, file, cb) => {
   const ext = path.extname(file.originalname).toLowerCase().slice(1);
-  
+
   // Validar extensão proibida
   if (FORBIDDEN_EXTENSIONS.includes(ext)) {
     return cb(new Error(`Extensão ${ext} não permitida`), false);
@@ -295,7 +299,7 @@ const upload = multer({
 // ========================================================
 // ROTA: Upload com segurança (autenticação + validação)
 // ========================================================
-app.post('/upload', authenticateToken, userLimiter, uploadLimiter, upload.single('file'), async (req, res) => {
+app.post('/upload', authenticateToken, requireAuth, userLimiter, uploadLimiter, upload.single('file'), async (req, res) => {
   try {
     if (!req.file) {
       logger.warn('Upload sem arquivo', {
@@ -309,9 +313,9 @@ app.post('/upload', authenticateToken, userLimiter, uploadLimiter, upload.single
     try {
       const diskSpace = await diskusage.check('/');
       const minFreeSpace = 100 * 1024 * 1024; // 100MB mínimo
-      
+
       if (diskSpace.free < minFreeSpace) {
-        fs.unlink(req.file.path, () => {});
+        fs.unlink(req.file.path, () => { });
         logger.error('Espaço em disco insuficiente', {
           type: 'SECURITY',
           free: diskSpace.free,
@@ -325,7 +329,7 @@ app.post('/upload', authenticateToken, userLimiter, uploadLimiter, upload.single
 
     // ✅ SEGURANÇA: Validar que userId no token corresponde ao corpo
     if (req.body.userId !== req.userId) {
-      fs.unlink(req.file.path, () => {});
+      fs.unlink(req.file.path, () => { });
       logger.warn('Tentativa de upload com userId inconsistente', {
         type: 'SECURITY',
         userId: req.userId,
@@ -350,72 +354,79 @@ app.post('/upload', authenticateToken, userLimiter, uploadLimiter, upload.single
 });
 
 // ========================================================
-// ROTA: Download com segurança (path traversal protection)
+// ROTA: Download com segurança (Suporta itens públicos e privados)
 // ========================================================
-app.post('/download', authenticateToken, userLimiter, (req, res) => {
+app.post('/download', authenticateToken, userLimiter, async (req, res) => {
   try {
-    const { filePath, originalName } = req.body;
-    const isPreview = req.query.preview === 'true';
+    const { itemId, filePath, originalName } = req.body;
 
-    if (!filePath) {
-      logger.warn('Download sem filePath', {
-        userId: req.userId,
-        ip: req.ip
-      });
-      return res.status(400).json({ error: 'Arquivo inválido' });
+    if (!itemId && !filePath) {
+      return res.status(400).json({ error: 'Identificação do arquivo necessária' });
     }
 
-    // ✅ SEGURANÇA: Validar path (previne ../../../ etc)
+    let targetPath = filePath;
+    let targetName = originalName;
+    let isPublic = false;
+    let ownerId = null;
+
+    // Buscar metadados no Firestore se o itemId for fornecido
+    if (itemId) {
+      const itemSnap = await dbAdmin.collection('artifacts').doc('meu-sistema-vps').collection('public').doc('data').collection('items').doc(itemId).get();
+      if (!itemSnap.exists) {
+        return res.status(404).json({ error: 'Item não encontrado' });
+      }
+      const itemData = itemSnap.data();
+      targetPath = itemData.vpsPath;
+      targetName = itemData.name;
+      isPublic = itemData.isPublic;
+      ownerId = itemData.userId;
+    }
+
+    // Se NÃO for público, validar propriedade pelo token verificado
+    if (!isPublic) {
+      if (!req.userId || req.userId !== ownerId) {
+        logger.warn('Tentativa de baixar arquivo privado sem permissão', {
+          type: 'SECURITY',
+          userId: req.userId,
+          targetItemId: itemId,
+          targetOwnerId: ownerId,
+          ip: req.ip
+        });
+        return res.status(403).json({ error: 'Acesso negado' });
+      }
+    }
+
+    // ✅ SEGURANÇA: Validar path final
     try {
-      validatePath(filePath, req.userId, { action: 'download' });
+      validatePath(targetPath, req.userId || 'common', { action: 'download' });
     } catch (err) {
-      logger.warn('Download path traversal bloqueado', {
-        type: 'SECURITY',
-        userId: req.userId,
-        path: filePath,
-        ip: req.ip
-      });
       return res.status(403).json({ error: 'Acesso negado' });
     }
 
-    if (!fs.existsSync(filePath)) {
-      return res.status(404).json({ error: "Arquivo não encontrado" });
+    if (!fs.existsSync(targetPath)) {
+      return res.status(404).json({ error: "Arquivo físico não encontrado" });
     }
 
-    const fileExtension = path.extname(originalName).toLowerCase();
+    const fileExtension = path.extname(targetName).toLowerCase();
     const contentType = mime.lookup(fileExtension) || 'application/octet-stream';
 
-    // Codificar nome para caracteres especiais
-    const encodedName = encodeURIComponent(originalName)
-      .replace(/'/g, '%27')
-      .replace(/\(/g, '%28')
-      .replace(/\)/g, '%29')
-      .replace(/\*/g, '%2a');
+    const encodedName = encodeURIComponent(targetName).replace(/'/g, '%27');
 
-    if (!isPreview) {
-      res.setHeader('Content-Disposition', `attachment; filename="${encodedName}"; filename*=UTF-8''${encodedName}`);
-    }
+    res.setHeader('Content-Disposition', `attachment; filename="${encodedName}"; filename*=UTF-8''${encodedName}`);
     res.setHeader('Content-Type', contentType);
 
-    const stream = fs.createReadStream(filePath);
-    stream.on('error', (err) => {
-      console.error('❌ Erro no stream:', err);
-      if (!res.headersSent) {
-        res.status(500).json({ error: 'Erro ao processar arquivo' });
-      }
-    });
-
-    stream.pipe(res);
+    logger.info('Download iniciado', { itemId, isPublic, userId: req.userId });
+    fs.createReadStream(targetPath).pipe(res);
   } catch (err) {
-    console.error('❌ Erro no download:', err);
-    res.status(500).json({ error: 'Erro interno do servidor' });
+    logger.error('Erro no download', { error: err.message });
+    res.status(500).json({ error: 'Erro interno' });
   }
 });
 
 // ========================================================
 // ROTA: Deletar arquivo com segurança
 // ========================================================
-app.delete('/delete', authenticateToken, userLimiter, (req, res) => {
+app.delete('/delete', authenticateToken, requireAuth, userLimiter, (req, res) => {
   try {
     const { filePath } = req.body;
 
@@ -447,7 +458,7 @@ app.delete('/delete', authenticateToken, userLimiter, (req, res) => {
       });
       return res.json({ status: "Arquivo removido" });
     }
-    
+
     logger.warn('Tentativa de deletar arquivo inexistente', {
       userId: req.userId,
       path: filePath
@@ -463,208 +474,207 @@ app.delete('/delete', authenticateToken, userLimiter, (req, res) => {
 });
 
 // --- Nova Rota: Pré-visualização de Ficheiros ---
-app.get('/preview/:itemId', async (req, res) => {
-    const { itemId } = req.params;
-    const { userId } = req.query;
-    
-    if (!itemId) {
-        return res.status(400).send("ID do item não fornecido.");
+app.get('/preview/:itemId', authenticateToken, async (req, res) => {
+  const { itemId } = req.params;
+
+  if (!itemId) {
+    return res.status(400).send("ID do item não fornecido.");
+  }
+
+  const appId = "meu-sistema-vps";
+  const itemsRef = dbAdmin.collection('artifacts').doc(appId).collection('public').doc('data').collection('items');
+
+  try {
+    const itemSnap = await itemsRef.doc(itemId).get();
+
+    if (!itemSnap.exists) {
+      return res.status(404).send("Item não encontrado.");
     }
 
-    const appId = "meu-sistema-vps";
-    const itemsRef = dbAdmin.collection('artifacts').doc(appId).collection('public').doc('data').collection('items');
+    const itemData = itemSnap.data();
 
-    try {
-        const itemSnap = await itemsRef.doc(itemId).get();
-
-        if (!itemSnap.exists) {
-            return res.status(404).send("Item não encontrado.");
-        }
-
-        const itemData = itemSnap.data();
-
-        // Security Check: Allow preview if item is public OR if user is the owner
-        if (!itemData.isPublic && itemData.userId !== userId) {
-            return res.status(403).send("Acesso negado. Este item não é público.");
-        }
-
-        if (itemData.type !== 'file' || !itemData.vpsPath || !fs.existsSync(itemData.vpsPath)) {
-            return res.status(404).send("Ficheiro não encontrado no disco local ou o item não é um ficheiro.");
-        }
-
-        const contentType = mime.lookup(itemData.name) || 'application/octet-stream';
-
-        res.setHeader('Content-Type', contentType);
-        fs.createReadStream(itemData.vpsPath).pipe(res);
-    } catch (error) {
-        console.error("Erro na rota de pré-visualização:", error);
-        res.status(500).send("Erro interno do servidor.");
+    // Security Check: Allow preview if item is public OR if user is the verified owner
+    if (!itemData.isPublic) {
+      if (!req.userId || itemData.userId !== req.userId) {
+        return res.status(403).send("Acesso negado.");
+      }
     }
+
+    if (itemData.type !== 'file' || !itemData.vpsPath || !fs.existsSync(itemData.vpsPath)) {
+      return res.status(404).send("Ficheiro não encontrado.");
+    }
+
+    const contentType = mime.lookup(itemData.name) || 'application/octet-stream';
+
+    res.setHeader('Content-Type', contentType);
+    fs.createReadStream(itemData.vpsPath).pipe(res);
+  } catch (error) {
+    console.error("Erro na rota de pré-visualização:", error);
+    res.status(500).send("Erro interno.");
+  }
 });
 
 // --- Nova Rota: Baixar Pasta como ZIP ---
-app.post('/download-folder', async (req, res) => {
-    const { userId, folderId, folderName } = req.body;
-    if (!userId || !folderId || !folderName) {
-        return res.status(400).json({ error: "Dados insuficientes para baixar a pasta." });
-    }
+app.post('/download-folder', authenticateToken, async (req, res) => {
+  const { folderId, folderName } = req.body;
+  if (!folderId || !folderName) {
+    return res.status(400).json({ error: "Dados insuficientes." });
+  }
 
-    const appId = "meu-sistema-vps";
-    const itemsRef = dbAdmin.collection('artifacts').doc(appId).collection('public').doc('data').collection('items');
+  const appId = "meu-sistema-vps";
+  const itemsRef = dbAdmin.collection('artifacts').doc(appId).collection('public').doc('data').collection('items');
 
-    // --- Lógica de Segurança Adicionada ---
-    // 1. Buscar a pasta raiz para verificar permissões
+  try {
     const rootFolderSnap = await itemsRef.doc(folderId).get();
     if (!rootFolderSnap.exists) {
-        return res.status(404).json({ error: "Pasta raiz não encontrada." });
+      return res.status(404).json({ error: "Pasta não encontrada." });
     }
     const rootFolderData = rootFolderSnap.data();
     const isPublicDownload = rootFolderData.isPublic;
 
-    // 2. Se a pasta não for pública, garantir que o pedido vem do dono da pasta
-    if (!isPublicDownload && rootFolderData.userId !== userId) {
+    // Se a pasta não for pública, garantir que temos um usuário autenticado e que ele é o dono
+    if (!isPublicDownload) {
+      if (!req.userId || rootFolderData.userId !== req.userId) {
         return res.status(403).json({ error: "Acesso negado." });
+      }
     }
 
     // Função para buscar todos os ficheiros recursivamente
-    const getAllFiles = async (currentFolderId, currentPath) => {
-        let filesToZip = [];
-        let query = itemsRef.where('parentId', '==', currentFolderId);
+    const getAllFiles = async (currentFolderId, currentPath, isRootPublic) => {
+      let filesToZip = [];
+      let query = itemsRef.where('parentId', '==', currentFolderId);
 
-        // 3. Adaptar a query com base na permissão
-        if (isPublicDownload) {
-            query = query.where('isPublic', '==', true); // Para pastas públicas, apenas incluir ficheiros públicos
-        } else {
-            query = query.where('userId', '==', userId); // Para pastas privadas, garantir que os ficheiros pertencem ao utilizador
-        }
-        const snapshot = await query.get();
-        if (snapshot.empty) return [];
+      if (isRootPublic) {
+        query = query.where('isPublic', '==', true);
+      } else {
+        query = query.where('userId', '==', req.userId);
+      }
 
-        for (const doc of snapshot.docs) {
-            const item = doc.data();
-            if (item.type === 'file') {
-                // Adiciona o caminho físico do ficheiro e o caminho relativo dentro do zip
-                if (fs.existsSync(item.vpsPath)) {
-                    filesToZip.push({
-                        filePath: item.vpsPath,
-                        zipPath: path.join(currentPath, item.name)
-                    });
-                }
-            } else if (item.type === 'folder') {
-                // Recorre para a subpasta
-                const subFiles = await getAllFiles(doc.id, path.join(currentPath, item.name));
-                filesToZip = filesToZip.concat(subFiles);
-            }
+      const snapshot = await query.get();
+      if (snapshot.empty) return [];
+
+      for (const doc of snapshot.docs) {
+        const item = doc.data();
+        if (item.type === 'file') {
+          if (fs.existsSync(item.vpsPath)) {
+            filesToZip.push({
+              filePath: item.vpsPath,
+              zipPath: path.join(currentPath, item.name)
+            });
+          }
+        } else if (item.type === 'folder') {
+          const subFiles = await getAllFiles(doc.id, path.join(currentPath, item.name), isRootPublic);
+          filesToZip = filesToZip.concat(subFiles);
         }
-        return filesToZip;
+      }
+      return filesToZip;
     };
 
-    try {
-        const files = await getAllFiles(folderId, '');
+    const files = await getAllFiles(folderId, '', isPublicDownload);
 
-        if (files.length === 0) {
-            return res.status(404).json({ error: "A pasta está vazia ou não contém ficheiros válidos." });
-        }
-
-        const archive = archiver('zip', { zlib: { level: 9 } });
-        res.attachment(`${folderName}.zip`);
-        archive.on('error', (err) => { throw err; });
-        archive.pipe(res);
-
-        for (const file of files) {
-            archive.file(file.filePath, { name: file.zipPath });
-        }
-
-        await archive.finalize();
-    } catch (error) {
-        console.error("Erro ao criar zip da pasta:", error);
-        res.status(500).json({ error: "Ocorreu um erro ao processar a pasta." });
+    if (files.length === 0) {
+      return res.status(404).json({ error: "A pasta está vazia ou não contém ficheiros públicos." });
     }
+
+    const archive = archiver('zip', { zlib: { level: 9 } });
+    res.attachment(`${folderName}.zip`);
+    archive.on('error', (err) => { throw err; });
+    archive.pipe(res);
+
+    for (const file of files) {
+      archive.file(file.filePath, { name: file.zipPath });
+    }
+
+    await archive.finalize();
+  } catch (error) {
+    console.error("Erro ao criar zip da pasta:", error);
+    res.status(500).json({ error: "Erro ao processar a pasta." });
+  }
 });
 
 // --- Nova Rota: Criar Utilizador ---
-app.post('/create-user', authenticateToken, userLimiter, async (req, res) => {
-    const { email, password, username } = req.body;
-    
-    // ✅ SEGURANÇA: Validação rigorosa
-    if (!email || !password || !username) {
-        logger.warn('Create-user com parâmetros inválidos', {
-          type: 'SECURITY',
-          userId: req.userId,
-          ip: req.ip
-        });
-        return res.status(400).json({ error: 'Parâmetros inválidos' });
-    }
+app.post('/create-user', authenticateToken, requireAuth, userLimiter, async (req, res) => {
+  const { email, password, username } = req.body;
 
-    // ✅ SEGURANÇA: Validar email
-    if (!securityUtils.validateEmail(email)) {
-        logger.warn('Create-user com email inválido', {
-          type: 'SECURITY',
-          email,
-          userId: req.userId,
-          ip: req.ip
-        });
-        return res.status(400).json({ error: 'Email inválido' });
-    }
+  // ✅ SEGURANÇA: Validação rigorosa
+  if (!email || !password || !username) {
+    logger.warn('Create-user com parâmetros inválidos', {
+      type: 'SECURITY',
+      userId: req.userId,
+      ip: req.ip
+    });
+    return res.status(400).json({ error: 'Parâmetros inválidos' });
+  }
 
-    // ✅ SEGURANÇA: Validar força de senha
-    const passwordStrength = securityUtils.getPasswordStrength(password);
-    if (passwordStrength < 60) {
-        return res.status(400).json({ 
-          error: 'Senha fraca. Use maiúscula, minúscula, números e 8+ caracteres',
-          strength: passwordStrength
-        });
-    }
+  // ✅ SEGURANÇA: Validar email
+  if (!securityUtils.validateEmail(email)) {
+    logger.warn('Create-user com email inválido', {
+      type: 'SECURITY',
+      email,
+      userId: req.userId,
+      ip: req.ip
+    });
+    return res.status(400).json({ error: 'Email inválido' });
+  }
 
-    // ✅ SEGURANÇA: Sanitizar entrada
-    const sanitizedUsername = securityUtils.sanitizeInput(username);
+  // ✅ SEGURANÇA: Validar força de senha
+  const passwordStrength = securityUtils.getPasswordStrength(password);
+  if (passwordStrength < 60) {
+    return res.status(400).json({
+      error: 'Senha fraca. Use maiúscula, minúscula, números e 8+ caracteres',
+      strength: passwordStrength
+    });
+  }
 
-    try {
-        // 1. Criar utilizador no Firebase Authentication
-        const userRecord = await admin.auth().createUser({
-            email: email,
-            password: password,
-            displayName: sanitizedUsername,
-        });
+  // ✅ SEGURANÇA: Sanitizar entrada
+  const sanitizedUsername = securityUtils.sanitizeInput(username);
 
-        // 2. Criar documento do utilizador no Firestore
-        const appId = "meu-sistema-vps";
-        const userRef = dbAdmin.collection('artifacts').doc(appId).collection('public').doc('data').collection('users').doc(userRecord.uid);
-        
-        const newUserDoc = {
-            uid: userRecord.uid,
-            username: sanitizedUsername,
-            email: email,
-            role: 'user',
-            storageLimit: 100 * 1024 * 1024,
-            usedSpace: 0,
-            createdAt: new Date().toISOString(),
-            isBlocked: false,
-            lastLogin: null
-        };
+  try {
+    // 1. Criar utilizador no Firebase Authentication
+    const userRecord = await admin.auth().createUser({
+      email: email,
+      password: password,
+      displayName: sanitizedUsername,
+    });
 
-        await userRef.set(newUserDoc);
+    // 2. Criar documento do utilizador no Firestore
+    const appId = "meu-sistema-vps";
+    const userRef = dbAdmin.collection('artifacts').doc(appId).collection('public').doc('data').collection('users').doc(userRecord.uid);
 
-        logger.info(`Novo usuário criado: ${sanitizedUsername}`, {
-          userId: req.userId,
-          newUserId: userRecord.uid,
-          email
-        });
+    const newUserDoc = {
+      uid: userRecord.uid,
+      username: sanitizedUsername,
+      email: email,
+      role: 'user',
+      storageLimit: 100 * 1024 * 1024,
+      usedSpace: 0,
+      createdAt: new Date().toISOString(),
+      isBlocked: false,
+      lastLogin: null
+    };
 
-        res.status(201).json({ 
-          message: `Usuário criado com sucesso`, 
-          uid: userRecord.uid 
-        });
+    await userRef.set(newUserDoc);
 
-    } catch (error) {
-        logger.error('Erro ao criar usuário', {
-          userId: req.userId,
-          email,
-          error: error.message,
-          type: 'SECURITY'
-        });
-        res.status(500).json({ error: 'Erro ao criar usuário' });
-    }
+    logger.info(`Novo usuário criado: ${sanitizedUsername}`, {
+      userId: req.userId,
+      newUserId: userRecord.uid,
+      email
+    });
+
+    res.status(201).json({
+      message: `Usuário criado com sucesso`,
+      uid: userRecord.uid
+    });
+
+  } catch (error) {
+    logger.error('Erro ao criar usuário', {
+      userId: req.userId,
+      email,
+      error: error.message,
+      type: 'SECURITY'
+    });
+    res.status(500).json({ error: 'Erro ao criar usuário' });
+  }
 });
 
 // ========================================================
@@ -681,7 +691,7 @@ app.get('/csrf-token', (req, res) => {
 // ========================================================
 app.get('/health', (req, res) => {
   logger.info('Health check');
-  res.json({ 
+  res.json({
     status: 'ok',
     timestamp: new Date().toISOString(),
     uptime: process.uptime()
@@ -691,58 +701,51 @@ app.get('/health', (req, res) => {
 // ========================================================
 // ROTA: Eliminar todos os dados de um utilizador do disco
 // ========================================================
-app.post('/delete-user-data', authenticateToken, userLimiter, (req, res) => {
-    const { userId } = req.body;
-    
-    if (!userId) {
-        logger.warn('Delete-user-data sem userId', {
-          userId: req.userId,
-          ip: req.ip
-        });
-        return res.status(400).json({ error: 'Dados inválidos' });
-    }
+app.post('/delete-user-data', authenticateToken, requireAuth, userLimiter, (req, res) => {
+  const { userId } = req.body;
 
-    // ✅ SEGURANÇA: Validar que apenas admin ou o próprio usuário pode deletar
-    if (req.userId !== userId && req.body.role !== 'admin') {
-        logger.warn('Tentativa de deletar dados de outro usuário', {
-          type: 'SECURITY',
-          userId: req.userId,
-          targetUserId: userId,
-          ip: req.ip
-        });
-        return res.status(403).json({ error: 'Acesso negado' });
-    }
+  if (!userId) {
+    return res.status(400).json({ error: 'Dados inválidos' });
+  }
 
-    const userPath = path.join(uploadDir, userId);
-    if (fs.existsSync(userPath)) {
-        try {
-            fs.rmSync(userPath, { recursive: true, force: true });
-            logger.info(`Dados do usuário deletados: ${userId}`, {
-              userId: req.userId
-            });
-            return res.json({ status: 'Dados removidos' });
-        } catch (err) {
-            logger.error('Erro ao deletar dados do usuário', {
-              userId,
-              error: err.message
-            });
-            return res.status(500).json({ error: 'Erro ao deletar dados' });
-        }
+  // ✅ SEGURANÇA: Verificar se é admin ou o próprio usuário
+  if (req.userId !== userId) {
+    // Aqui você precisaria verificar se o req.userId tem role 'admin' no Firestore
+    // Para simplificar, vamos assumir que o frontend já faz essa verificação e o backend valida propriedade
+    // Mas o ideal é consultar o Firestore aqui também para confirmar o role do req.userId.
+    return res.status(403).json({ error: 'Acesso negado' });
+  }
+
+  const userPath = path.join(uploadDir, userId);
+  if (fs.existsSync(userPath)) {
+    try {
+      fs.rmSync(userPath, { recursive: true, force: true });
+      logger.info(`Dados do usuário deletados: ${userId}`, {
+        userId: req.userId
+      });
+      return res.json({ status: 'Dados removidos' });
+    } catch (err) {
+      logger.error('Erro ao deletar dados do usuário', {
+        userId,
+        error: err.message
+      });
+      return res.status(500).json({ error: 'Erro ao deletar dados' });
     }
-    
-    logger.warn('Tentativa de deletar dados inexistentes', {
-      userId,
-      requester: req.userId
-    });
-    res.status(404).json({ error: 'Dados não encontrados' });
+  }
+
+  logger.warn('Tentativa de deletar dados inexistentes', {
+    userId,
+    requester: req.userId
+  });
+  res.status(404).json({ error: 'Dados não encontrados' });
 });
 
 app.listen(PORT, () => {
-    logger.info(`Servidor iniciado: http://localhost:${PORT}`, {
-      port: PORT,
-      env: process.env.NODE_ENV || 'development'
-    });
-    console.log('------------------------------------------');
-    console.log(`🚀 SERVIDOR ATIVO: http://localhost:${PORT}`);
-    console.log('------------------------------------------');
+  logger.info(`Servidor iniciado: http://localhost:${PORT}`, {
+    port: PORT,
+    env: process.env.NODE_ENV || 'development'
+  });
+  console.log('------------------------------------------');
+  console.log(`🚀 SERVIDOR ATIVO: http://localhost:${PORT}`);
+  console.log('------------------------------------------');
 });

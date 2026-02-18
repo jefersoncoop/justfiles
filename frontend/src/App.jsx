@@ -1,16 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { initializeApp } from 'firebase/app';
-import { 
-  getFirestore, collection, doc, setDoc, getDoc, getDocs, 
+import {
+  getFirestore, collection, doc, setDoc, getDoc, getDocs,
   query, where, onSnapshot, updateDoc, deleteDoc, addDoc, writeBatch, orderBy, limit,
-  serverTimestamp 
+  serverTimestamp
 } from 'firebase/firestore';
-import { 
+import {
   getAuth, onAuthStateChanged, signOut, signInWithEmailAndPassword
 } from 'firebase/auth';
-import { 
-  Folder, File, Shield, Users, HardDrive, Plus, 
-  Trash2, Globe, Lock, Copy, Download, ChevronRight, 
+import {
+  Folder, File, Shield, Users, HardDrive, Plus,
+  Trash2, Globe, Lock, Copy, Download, ChevronRight,
   LogOut, Loader2, UploadCloud, Search, MoreVertical, Share2, Eye, XCircle, Mail,
   UserPlus, UserMinus, UserX, UserCheck, Database, FileUp, FolderPlus,
   FileText, FileImage, FileArchive
@@ -47,7 +47,7 @@ const logAction = async (action, details) => {
       action,
       ...details,
       // Garante que 'performedBy' nunca é undefined
-      performedBy: details.performedBy || 'Sistema', 
+      performedBy: details.performedBy || 'Sistema',
       timestamp: serverTimestamp()
     };
     await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'logs'), logDetails);
@@ -58,25 +58,25 @@ const logAction = async (action, details) => {
 
 const getIconForItem = (item) => {
   if (item.type === 'folder') {
-      return <Folder size={24} fill="currentColor" fillOpacity={0.2} />;
+    return <Folder size={24} fill="currentColor" fillOpacity={0.2} />;
   }
   const extension = item.name.split('.').pop().toLowerCase();
   switch (extension) {
-      case 'jpg':
-      case 'jpeg':
-      case 'png':
-      case 'gif':
-      case 'webp':
-      case 'svg':
-          return <FileImage size={24} fill="currentColor" fillOpacity={0.2} />;
-      case 'pdf':
-          return <FileText size={24} fill="currentColor" fillOpacity={0.2} />;
-      case 'zip':
-      case 'rar':
-      case '7z':
-          return <FileArchive size={24} fill="currentColor" fillOpacity={0.2} />;
-      default:
-          return <File size={24} fill="currentColor" fillOpacity={0.2} />;
+    case 'jpg':
+    case 'jpeg':
+    case 'png':
+    case 'gif':
+    case 'webp':
+    case 'svg':
+      return <FileImage size={24} fill="currentColor" fillOpacity={0.2} />;
+    case 'pdf':
+      return <FileText size={24} fill="currentColor" fillOpacity={0.2} />;
+    case 'zip':
+    case 'rar':
+    case '7z':
+      return <FileArchive size={24} fill="currentColor" fillOpacity={0.2} />;
+    default:
+      return <File size={24} fill="currentColor" fillOpacity={0.2} />;
   }
 };
 
@@ -127,7 +127,7 @@ const glassEffect = "glass-effect";
 export default function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState('login'); 
+  const [view, setView] = useState('login');
   const [sharedItemId, setSharedItemId] = useState(null);
   const [userData, setUserData] = useState(null);
 
@@ -144,7 +144,7 @@ export default function App() {
       if (u) {
         const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', u.uid);
         const userSnap = await getDoc(userRef);
-        
+
         if (userSnap.exists()) {
           const d = userSnap.data();
           if (d.isBlocked) {
@@ -274,30 +274,30 @@ function LoginView() {
           <h1 className="login-title">SafeHost</h1>
           <p className="login-subtitle">Armazenamento seguro na nuvem.</p>
         </div>
-        
+
         <form className="login-form" onSubmit={(e) => { e.preventDefault(); handleLogin(); }}>
           <div className="input-group">
             <Mail size={18} className="icon" />
-            <input 
-              type="email" 
-              id="email" 
-              placeholder="Seu e-mail" 
-              className="login-input with-icon" 
-              value={email} 
-              onChange={e => setEmail(e.target.value)} 
-              required 
+            <input
+              type="email"
+              id="email"
+              placeholder="Seu e-mail"
+              className="login-input with-icon"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              required
             />
           </div>
           <div className="input-group">
             <Lock size={18} className="icon" />
-            <input 
-              type="password" 
-              id="password" 
-              placeholder="Sua senha" 
-              className="login-input with-icon" 
-              value={password} 
-              onChange={e => setPassword(e.target.value)} 
-              required 
+            <input
+              type="password"
+              id="password"
+              placeholder="Sua senha"
+              className="login-input with-icon"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              required
             />
           </div>
 
@@ -394,13 +394,13 @@ function AdminDashboard({ user, userData, setView }) {
       const token = await user.getIdToken();
       const res = await fetch(`${API_URL}/create-user`, {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({ email, password, username })
       });
-      
+
       const data = await res.json();
 
       if (!res.ok) throw new Error(data.error || 'Falha ao criar usuário.');
@@ -434,7 +434,7 @@ function AdminDashboard({ user, userData, setView }) {
       const token = await user.getIdToken();
       await fetch(`${API_URL}/delete-user-data`, {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
@@ -489,7 +489,7 @@ function AdminDashboard({ user, userData, setView }) {
           </button>
         </div>
       </header>
-      
+
       <div className="content-card" style={{ padding: 0, overflow: 'hidden' }}>
         <div style={{ overflowX: 'auto' }} className="no-scrollbar">
           <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse' }} className="admin-table">
@@ -510,9 +510,9 @@ function AdminDashboard({ user, userData, setView }) {
                     <div style={{ fontSize: '0.625rem', color: 'var(--app-text-medium)', fontFamily: 'monospace', marginTop: '0.125rem' }}>{u.uid}</div>
                   </td>
                   <td style={{ padding: '1.25rem', whiteSpace: 'nowrap' }}>
-                    <input 
-                      type="number" 
-                      defaultValue={(u.storageLimit / 1024 / 1024).toFixed(0)} 
+                    <input
+                      type="number"
+                      defaultValue={(u.storageLimit / 1024 / 1024).toFixed(0)}
                       onBlur={(e) => updateLimit(u.uid, e.target.value)}
                       className="input-field"
                       style={{ width: '6rem', padding: '0.5rem', borderRadius: '0.75rem', fontWeight: '700', fontSize: '0.875rem' }}
@@ -526,12 +526,12 @@ function AdminDashboard({ user, userData, setView }) {
                   </td>
                   <td style={{ padding: '1.25rem', whiteSpace: 'nowrap' }}>
                     <span style={{
-                        padding: '0.25rem 0.75rem',
-                        borderRadius: '9999px',
-                        fontSize: '0.75rem',
-                        fontWeight: '700',
-                        backgroundColor: u.isBlocked ? 'var(--app-error-light)' : 'var(--app-success-light)',
-                        color: u.isBlocked ? 'var(--app-error)' : 'var(--app-success)'
+                      padding: '0.25rem 0.75rem',
+                      borderRadius: '9999px',
+                      fontSize: '0.75rem',
+                      fontWeight: '700',
+                      backgroundColor: u.isBlocked ? 'var(--app-error-light)' : 'var(--app-success-light)',
+                      color: u.isBlocked ? 'var(--app-error)' : 'var(--app-success)'
                     }}>
                       {u.isBlocked ? 'Bloqueado' : 'Ativo'}
                     </span>
@@ -639,23 +639,23 @@ function UserDashboard({ user, userData, setView }) {
       where('parentId', '==', currentFolder)
     );
     return onSnapshot(q, (snap) => {
-      setItems(snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b) => a.type === 'folder' ? -1 : 1));
+      setItems(snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => a.type === 'folder' ? -1 : 1));
     });
   }, [currentFolder, user.uid]);
 
   // Busca global em todas as pastas quando há termo de pesquisa
   const [allItems, setAllItems] = useState([]);
-  
+
   useEffect(() => {
     if (!searchTerm) return;
-    
+
     const q = query(
       collection(db, 'artifacts', appId, 'public', 'data', 'items'),
       where('userId', '==', user.uid)
     );
-    
+
     return onSnapshot(q, (snap) => {
-      setAllItems(snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b) => a.type === 'folder' ? -1 : 1));
+      setAllItems(snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => a.type === 'folder' ? -1 : 1));
     });
   }, [searchTerm, user.uid]);
 
@@ -702,8 +702,8 @@ function UserDashboard({ user, userData, setView }) {
           formData.append('userId', user.uid);
 
           const token = await user.getIdToken();
-          const res = await fetch(`${API_URL}/upload`, { 
-            method: 'POST', 
+          const res = await fetch(`${API_URL}/upload`, {
+            method: 'POST',
             body: formData,
             headers: { 'Authorization': `Bearer ${token}` }
           });
@@ -711,13 +711,13 @@ function UserDashboard({ user, userData, setView }) {
           const data = await res.json();
 
           await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'items'), {
-            name: file.name, 
-            type: 'file', 
-            size: file.size, 
+            name: file.name,
+            type: 'file',
+            size: file.size,
             parentId: currentFolder,
-            userId: user.uid, 
-            isPublic: false, 
-            vpsPath: data.filePath, 
+            userId: user.uid,
+            isPublic: false,
+            vpsPath: data.filePath,
             createdAt: serverTimestamp()
           });
 
@@ -748,7 +748,7 @@ function UserDashboard({ user, userData, setView }) {
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
-    } catch (err) { 
+    } catch (err) {
       alert("Falha ao enviar arquivos para o disco local. Verifique se o backend está rodando.");
     }
     setIsUploading(false);
@@ -832,7 +832,7 @@ function UserDashboard({ user, userData, setView }) {
     try {
       const res = await fetchWithAuth(`${API_URL}/download`, {
         method: 'POST',
-        body: JSON.stringify({ filePath: item.vpsPath, originalName: item.name })
+        body: JSON.stringify({ itemId: item.id })
       });
       if (!res.ok) throw new Error("Download failed");
       const blob = await res.blob();
@@ -844,293 +844,293 @@ function UserDashboard({ user, userData, setView }) {
       a.click();
       a.remove();
       window.URL.revokeObjectURL(url);
-    } catch (e) { 
-      alert("Erro ao baixar. Verifique se o servidor backend está funcionando."); 
+    } catch (e) {
+      alert("Erro ao baixar. " + e.message);
     }
     setDownloadingItemId(null);
   };
 
-  const handlePreview = async (item) => {
-    // O proprietário do arquivo pode visualizar sem restrições
-    const previewUrl = `${API_URL}/preview/${item.id}?userId=${user.uid}`;
-    const extension = item.name.split('.').pop().toLowerCase();
-    let contentType = 'unsupported';
+  // O proprietário do arquivo pode visualizar sem restrições
+  const token = await user.getIdToken();
+  const previewUrl = `${API_URL}/preview/${item.id}?token=${token}`;
+  const extension = item.name.split('.').pop().toLowerCase();
+  let contentType = 'unsupported';
 
-    if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(extension)) {
-      contentType = 'image';
-    } else if (extension === 'pdf') {
-      contentType = 'pdf';
+  if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(extension)) {
+    contentType = 'image';
+  } else if (extension === 'pdf') {
+    contentType = 'pdf';
+  }
+
+  setPreviewContent({ url: previewUrl, type: contentType, name: item.name });
+  setShowPreviewModal(true);
+  setOpenMenuId(null); // Fecha o menu de ações
+};
+
+
+const downloadFolder = async (folder) => {
+  if (downloadingItemId) return;
+  setDownloadingItemId(folder.id);
+  try {
+    const res = await fetchWithAuth(`${API_URL}/download-folder`, {
+      method: 'POST',
+      body: JSON.stringify({
+        userId: user.uid,
+        folderId: folder.id,
+        folderName: folder.name
+      })
+    });
+    if (!res.ok) {
+      const errData = await res.json();
+      throw new Error(errData.error || "Falha no download da pasta");
     }
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${folder.name}.zip`;
+    document.body.appendChild(a); a.click(); a.remove();
+    window.URL.revokeObjectURL(url);
+  } catch (e) { alert(`Erro ao descarregar pasta: ${e.message}`); }
+  setDownloadingItemId(null);
+};
 
-    setPreviewContent({ url: previewUrl, type: contentType, name: item.name });
-    setShowPreviewModal(true);
-    setOpenMenuId(null); // Fecha o menu de ações
-  };
+const shareFolderContentsRecursively = async (folder) => {
+  if (!confirm(`Tem certeza de que deseja tornar PÚBLICA a pasta "${folder.name}" e todo o seu conteúdo? Esta ação não pode ser desfeita em massa.`)) return;
 
+  setOpenMenuId(null);
+  // TODO: Adicionar um estado de loading visual para o utilizador
 
-  const downloadFolder = async (folder) => {
-      if (downloadingItemId) return;
-      setDownloadingItemId(folder.id);
-      try {
-          const res = await fetchWithAuth(`${API_URL}/download-folder`, {
-              method: 'POST',
-              body: JSON.stringify({
-                  userId: user.uid,
-                  folderId: folder.id,
-                  folderName: folder.name
-              })
-          });
-          if (!res.ok) {
-              const errData = await res.json();
-              throw new Error(errData.error || "Falha no download da pasta");
-          }
-          const blob = await res.blob();
-          const url = window.URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = `${folder.name}.zip`;
-          document.body.appendChild(a); a.click(); a.remove();
-          window.URL.revokeObjectURL(url);
-      } catch (e) { alert(`Erro ao descarregar pasta: ${e.message}`); }
-      setDownloadingItemId(null);
-  };
+  const itemsToUpdate = [];
 
-  const shareFolderContentsRecursively = async (folder) => {
-    if (!confirm(`Tem certeza de que deseja tornar PÚBLICA a pasta "${folder.name}" e todo o seu conteúdo? Esta ação não pode ser desfeita em massa.`)) return;
-    
-    setOpenMenuId(null);
-    // TODO: Adicionar um estado de loading visual para o utilizador
+  // Função auxiliar para encontrar todos os descendentes
+  const findDescendants = async (folderId) => {
+    const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'items'), where('parentId', '==', folderId), where('userId', '==', user.uid));
+    const snapshot = await getDocs(q);
 
-    const itemsToUpdate = [];
-
-    // Função auxiliar para encontrar todos os descendentes
-    const findDescendants = async (folderId) => {
-        const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'items'), where('parentId', '==', folderId), where('userId', '==', user.uid));
-        const snapshot = await getDocs(q);
-        
-        for (const docSnap of snapshot.docs) {
-            itemsToUpdate.push(docSnap.ref);
-            if (docSnap.data().type === 'folder') {
-                await findDescendants(docSnap.id);
-            }
-        }
-    };
-
-    try {
-        // Adicionar a própria pasta à lista de atualização
-        const rootFolderRef = doc(db, 'artifacts', appId, 'public', 'data', 'items', folder.id);
-        itemsToUpdate.push(rootFolderRef);
-
-        await findDescendants(folder.id);
-
-        if (itemsToUpdate.length > 499) {
-            alert("Esta pasta é muito grande para compartilhar de uma só vez. Por favor, compartilhe as subpastas individualmente.");
-            return;
-        }
-
-        const batch = writeBatch(db);
-        itemsToUpdate.forEach(itemRef => {
-            batch.update(itemRef, { isPublic: true });
-        });
-        await batch.commit();
-
-        logAction('make_item_public', {
-            performedBy: userData.username,
-            itemName: folder.name,
-            details: `Pasta e ${itemsToUpdate.length - 1} sub-itens tornados públicos`
-        });
-        alert(`A pasta "${folder.name}" e todo o seu conteúdo foram compartilhados com sucesso.`);
-    } catch (err) {
-        console.error("Erro ao compartilhar pasta recursivamente:", err);
-        alert("Ocorreu um erro ao compartilhar a pasta.");
+    for (const docSnap of snapshot.docs) {
+      itemsToUpdate.push(docSnap.ref);
+      if (docSnap.data().type === 'folder') {
+        await findDescendants(docSnap.id);
+      }
     }
   };
 
-  return (
-    <div style={{ maxWidth: '72rem', margin: '0 auto', padding: '1rem' }} className="md-p-8">
-      <header style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1.5rem', marginBottom: '2.5rem' }} className="md-flex-row md-items-center">
-        <div style={{ width: '100%' }} className="md-w-auto">
-          <h1 style={{ fontSize: '1.875rem', fontWeight: '900', letterSpacing: '-0.025em' }}>Meus Arquivos</h1>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginTop: '0.5rem' }}>
-            <div style={{ width: '8rem', backgroundColor: 'var(--app-border)', height: '0.375rem', borderRadius: '9999px', overflow: 'hidden' }}>
-               <div style={{ backgroundColor: 'var(--app-primary)', height: '100%', width: `${Math.min(100, (userData.usedSpace / userData.storageLimit) * 100)}%` }}></div>
-            </div>
-            <span style={{ fontSize: '0.625rem', color: '#64748b', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              {(userData.usedSpace / 1024 / 1024).toFixed(1)} / {(userData.storageLimit / 1024 / 1024).toFixed(0)} MB
-            </span>
+  try {
+    // Adicionar a própria pasta à lista de atualização
+    const rootFolderRef = doc(db, 'artifacts', appId, 'public', 'data', 'items', folder.id);
+    itemsToUpdate.push(rootFolderRef);
+
+    await findDescendants(folder.id);
+
+    if (itemsToUpdate.length > 499) {
+      alert("Esta pasta é muito grande para compartilhar de uma só vez. Por favor, compartilhe as subpastas individualmente.");
+      return;
+    }
+
+    const batch = writeBatch(db);
+    itemsToUpdate.forEach(itemRef => {
+      batch.update(itemRef, { isPublic: true });
+    });
+    await batch.commit();
+
+    logAction('make_item_public', {
+      performedBy: userData.username,
+      itemName: folder.name,
+      details: `Pasta e ${itemsToUpdate.length - 1} sub-itens tornados públicos`
+    });
+    alert(`A pasta "${folder.name}" e todo o seu conteúdo foram compartilhados com sucesso.`);
+  } catch (err) {
+    console.error("Erro ao compartilhar pasta recursivamente:", err);
+    alert("Ocorreu um erro ao compartilhar a pasta.");
+  }
+};
+
+return (
+  <div style={{ maxWidth: '72rem', margin: '0 auto', padding: '1rem' }} className="md-p-8">
+    <header style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1.5rem', marginBottom: '2.5rem' }} className="md-flex-row md-items-center">
+      <div style={{ width: '100%' }} className="md-w-auto">
+        <h1 style={{ fontSize: '1.875rem', fontWeight: '900', letterSpacing: '-0.025em' }}>Meus Arquivos</h1>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginTop: '0.5rem' }}>
+          <div style={{ width: '8rem', backgroundColor: 'var(--app-border)', height: '0.375rem', borderRadius: '9999px', overflow: 'hidden' }}>
+            <div style={{ backgroundColor: 'var(--app-primary)', height: '100%', width: `${Math.min(100, (userData.usedSpace / userData.storageLimit) * 100)}%` }}></div>
           </div>
+          <span style={{ fontSize: '0.625rem', color: '#64748b', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            {(userData.usedSpace / 1024 / 1024).toFixed(1)} / {(userData.storageLimit / 1024 / 1024).toFixed(0)} MB
+          </span>
         </div>
-        
-        <div style={{ display: 'flex', gap: '0.5rem', width: '100%', alignItems: 'center', flexWrap: 'wrap' }} className="md-w-auto">
-          {showSearchInput && (
-            <input
-              ref={searchInputRef}
-              type="text"
-              placeholder="Pesquisar arquivos ou pastas..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              onBlur={() => { if (!searchTerm) setShowSearchInput(false); }}
-              className="login-input"
-              style={{ padding: '0.5rem 1rem', borderRadius: '0.75rem', border: '1px solid var(--app-border)', flex: 1, minWidth: '200px', animation: 'slideInDown 0.3s ease-out' }}
-            />
-          )}
-          {!showSearchInput && (
-            <button onClick={() => setShowSearchInput(true)} className="btn btn-secondary" style={{ padding: '0.75rem' }} title="Pesquisar">
-              <Search size={20} />
-            </button>
-          )}
-          {userData.role === 'admin' && (
-            <button onClick={() => setView('admin')} className="btn btn-secondary" style={{ padding: '0.75rem' }}>
-              <Shield size={20} style={{ color: 'var(--app-primary)' }} />
-            </button>
-          )}
-          <label className="btn btn-primary md-flex-none" style={{ flex: '1', padding: '0.75rem 1.5rem', borderRadius: '1rem', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05), 0 10px 15px -3px rgba(59,130,246,0.1)', cursor: 'pointer' }}>
-            <UploadCloud size={18} /> Carregar <input ref={fileInputRef} type="file" multiple style={{ display: 'none' }} onChange={uploadFile} />
-          </label>
-          <button onClick={createFolder} className="btn btn-secondary" style={{ padding: '0.75rem 1.5rem', borderRadius: '1rem' }}>
-            <Plus size={18} /> Pasta
+      </div>
+
+      <div style={{ display: 'flex', gap: '0.5rem', width: '100%', alignItems: 'center', flexWrap: 'wrap' }} className="md-w-auto">
+        {showSearchInput && (
+          <input
+            ref={searchInputRef}
+            type="text"
+            placeholder="Pesquisar arquivos ou pastas..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            onBlur={() => { if (!searchTerm) setShowSearchInput(false); }}
+            className="login-input"
+            style={{ padding: '0.5rem 1rem', borderRadius: '0.75rem', border: '1px solid var(--app-border)', flex: 1, minWidth: '200px', animation: 'slideInDown 0.3s ease-out' }}
+          />
+        )}
+        {!showSearchInput && (
+          <button onClick={() => setShowSearchInput(true)} className="btn btn-secondary" style={{ padding: '0.75rem' }} title="Pesquisar">
+            <Search size={20} />
           </button>
-          <button onClick={() => signOut(auth)} className="btn-danger" style={{ padding: '0.75rem' }}>
-            <LogOut size={20} />
+        )}
+        {userData.role === 'admin' && (
+          <button onClick={() => setView('admin')} className="btn btn-secondary" style={{ padding: '0.75rem' }}>
+            <Shield size={20} style={{ color: 'var(--app-primary)' }} />
+          </button>
+        )}
+        <label className="btn btn-primary md-flex-none" style={{ flex: '1', padding: '0.75rem 1.5rem', borderRadius: '1rem', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05), 0 10px 15px -3px rgba(59,130,246,0.1)', cursor: 'pointer' }}>
+          <UploadCloud size={18} /> Carregar <input ref={fileInputRef} type="file" multiple style={{ display: 'none' }} onChange={uploadFile} />
+        </label>
+        <button onClick={createFolder} className="btn btn-secondary" style={{ padding: '0.75rem 1.5rem', borderRadius: '1rem' }}>
+          <Plus size={18} /> Pasta
+        </button>
+        <button onClick={() => signOut(auth)} className="btn-danger" style={{ padding: '0.75rem' }}>
+          <LogOut size={20} />
+        </button>
+      </div>
+    </header>
+
+    {/* Breadcrumbs Melhorados */}
+    <nav style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', marginBottom: '2rem', fontSize: '0.875rem', overflowX: 'auto', paddingBottom: '0.5rem', paddingTop: '0.5rem' }} className="no-scrollbar">
+      {breadcrumbs.map((c, i) => (
+        <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', flexShrink: '0' }}>
+          {i > 0 && <ChevronRight size={14} style={{ color: '#cbd5e1' }} />}
+          <button
+            onClick={() => { setBreadcrumbs(breadcrumbs.slice(0, i + 1)); setCurrentFolder(c.id); }}
+            className={i === breadcrumbs.length - 1 ? "bg-slate-900 text-white font-bold" : "text-slate-500 font-medium"}
+            onMouseOver={(e) => { if (i !== breadcrumbs.length - 1) e.currentTarget.style.backgroundColor = 'var(--app-border-light)'; }}
+            onMouseOut={(e) => { if (i !== breadcrumbs.length - 1) e.currentTarget.style.backgroundColor = 'transparent'; }}
+            style={{
+              ...(i === breadcrumbs.length - 1 ? { backgroundColor: 'var(--app-text-dark)', color: 'white', fontWeight: '700' } : { color: '#64748b', fontWeight: '500' }),
+              padding: '0.375rem 0.75rem',
+              borderRadius: '0.75rem',
+              transition: 'background-color 0.2s ease-in-out, color 0.2s ease-in-out',
+              border: 'none',
+              cursor: 'pointer'
+            }}
+          >
+            {c.name}
           </button>
         </div>
-      </header>
+      ))}
+    </nav>
 
-      {/* Breadcrumbs Melhorados */}
-      <nav style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', marginBottom: '2rem', fontSize: '0.875rem', overflowX: 'auto', paddingBottom: '0.5rem', paddingTop: '0.5rem' }} className="no-scrollbar">
-        {breadcrumbs.map((c, i) => (
-          <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', flexShrink: '0' }}>
-            {i > 0 && <ChevronRight size={14} style={{ color: '#cbd5e1' }} />}
-            <button 
-              onClick={() => { setBreadcrumbs(breadcrumbs.slice(0, i+1)); setCurrentFolder(c.id); }} 
-              className={i === breadcrumbs.length - 1 ? "bg-slate-900 text-white font-bold" : "text-slate-500 font-medium"}
-              onMouseOver={(e) => { if (i !== breadcrumbs.length - 1) e.currentTarget.style.backgroundColor = 'var(--app-border-light)'; }}
-              onMouseOut={(e) => { if (i !== breadcrumbs.length - 1) e.currentTarget.style.backgroundColor = 'transparent'; }}
-              style={{
-                ...(i === breadcrumbs.length - 1 ? { backgroundColor: 'var(--app-text-dark)', color: 'white', fontWeight: '700' } : { color: '#64748b', fontWeight: '500' }),
-                padding: '0.375rem 0.75rem',
-                borderRadius: '0.75rem',
-                transition: 'background-color 0.2s ease-in-out, color 0.2s ease-in-out',
-                border: 'none',
-                cursor: 'pointer'
-              }}
-            >
-              {c.name}
-            </button>
-          </div>
-        ))}
-      </nav>
+    {isUploading && (
+      <div style={{ padding: '1.25rem', backgroundColor: 'var(--app-bg-subtle)', border: '1px solid #bfdbfe', color: '#1d4ed8', borderRadius: '1rem', marginBottom: '2rem', animation: 'pulse 2s infinite', display: 'flex', alignItems: 'center', gap: '1rem', fontWeight: '700', fontSize: '0.875rem', boxShadow: 'inset 0 2px 4px 0 rgba(0, 0, 0, 0.06)' }} className="animate-slide-in-down">
+        <Loader2 className="animate-spin" style={{ animation: 'rotateLoad 2s linear infinite' }} /> Transferindo arquivo para o disco local...
+      </div>
+    )}
 
-      {isUploading && (
-        <div style={{ padding: '1.25rem', backgroundColor: 'var(--app-bg-subtle)', border: '1px solid #bfdbfe', color: '#1d4ed8', borderRadius: '1rem', marginBottom: '2rem', animation: 'pulse 2s infinite', display: 'flex', alignItems: 'center', gap: '1rem', fontWeight: '700', fontSize: '0.875rem', boxShadow: 'inset 0 2px 4px 0 rgba(0, 0, 0, 0.06)' }} className="animate-slide-in-down">
-          <Loader2 className="animate-spin" style={{ animation: 'rotateLoad 2s linear infinite' }} /> Transferindo arquivo para o disco local...
-        </div>
-      )}
+    {items.length === 0 && !isUploading ? ( /* flex flex-col items-center justify-center py-24 border-4 border-dashed border-slate-100 rounded-[3rem] */
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '6rem 0', border: '4px dashed var(--app-border)', borderRadius: '3rem' }}>
+        <div style={{ backgroundColor: 'var(--app-border-light)', padding: '1.5rem', borderRadius: '9999px', marginBottom: '1.5rem', color: '#e2e8f0' }}><Search size={64} /></div>
+        <p style={{ color: 'var(--app-text-medium)', fontWeight: '700' }}>Nenhum arquivo nesta pasta</p>
+      </div>
+    ) : filteredItems.length === 0 && searchTerm ? (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '6rem 0', border: '4px dashed var(--app-border)', borderRadius: '3rem' }}>
+        <div style={{ backgroundColor: 'var(--app-border-light)', padding: '1.5rem', borderRadius: '9999px', marginBottom: '1.5rem', color: '#e2e8f0' }}><Search size={64} /></div>
+        <p style={{ color: 'var(--app-text-medium)', fontWeight: '700' }}>Nenhum resultado para "{searchTerm}"</p>
+      </div>
+    ) : (
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '1.5rem' }} className="sm-grid-cols-3 lg-grid-cols-4 xl-grid-cols-5">
+        {filteredItems.map((item, index) => (
+          <div
+            key={item.id}
+            className={`card ${glassEffect} animate-fade-in-up`}
+            style={{ display: 'flex', flexDirection: 'column', height: '240px', animationDelay: `${index * 50}ms`, cursor: 'pointer' }}
+            onClick={() => {
+              if (item.type === 'folder') {
+                navigateToItem(item);
+              } else {
+                handlePreview(item);
+              }
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem', minHeight: '70px' }}>
+              <div
+                className={item.type === 'folder' ? 'bg-amber-100 text-amber-600' : 'bg-blue-100 text-blue-700'}
+                style={{ padding: '1rem', borderRadius: '1rem', boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)', zIndex: 1, flexShrink: 0 }}>
+                {getIconForItem(item)}
+              </div>
 
-      {items.length === 0 && !isUploading ? ( /* flex flex-col items-center justify-center py-24 border-4 border-dashed border-slate-100 rounded-[3rem] */
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '6rem 0', border: '4px dashed var(--app-border)', borderRadius: '3rem' }}>
-          <div style={{ backgroundColor: 'var(--app-border-light)', padding: '1.5rem', borderRadius: '9999px', marginBottom: '1.5rem', color: '#e2e8f0' }}><Search size={64} /></div>
-          <p style={{ color: 'var(--app-text-medium)', fontWeight: '700' }}>Nenhum arquivo nesta pasta</p>
-        </div>
-      ) : filteredItems.length === 0 && searchTerm ? (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '6rem 0', border: '4px dashed var(--app-border)', borderRadius: '3rem' }}>
-          <div style={{ backgroundColor: 'var(--app-border-light)', padding: '1.5rem', borderRadius: '9999px', marginBottom: '1.5rem', color: '#e2e8f0' }}><Search size={64} /></div>
-          <p style={{ color: 'var(--app-text-medium)', fontWeight: '700' }}>Nenhum resultado para "{searchTerm}"</p>
-        </div>
-      ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '1.5rem' }} className="sm-grid-cols-3 lg-grid-cols-4 xl-grid-cols-5">
-          {filteredItems.map((item, index) => (
-            <div 
-              key={item.id} 
-              className={`card ${glassEffect} animate-fade-in-up`} 
-              style={{ display: 'flex', flexDirection: 'column', height: '240px', animationDelay: `${index * 50}ms`, cursor: 'pointer' }}
-              onClick={() => {
-                if (item.type === 'folder') {
-                  navigateToItem(item);
-                } else {
-                  handlePreview(item);
-                }
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem', minHeight: '70px' }}>
-                <div 
-                  className={item.type === 'folder' ? 'bg-amber-100 text-amber-600' : 'bg-blue-100 text-blue-700'}
-                  style={{ padding: '1rem', borderRadius: '1rem', boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)', zIndex: 1, flexShrink: 0 }}>
-                  {getIconForItem(item)}
-                </div>
-                
-                <div className="card-actions" style={{ marginLeft: 'auto', flexShrink: 0 }}>
-                  <button onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === item.id ? null : item.id); }}>
-                    <MoreVertical size={16} />
+              <div className="card-actions" style={{ marginLeft: 'auto', flexShrink: 0 }}>
+                <button onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === item.id ? null : item.id); }}>
+                  <MoreVertical size={16} />
+                </button>
+              </div>
+
+              {openMenuId === item.id && (
+                <div className="dropdown-menu" ref={menuRef}>
+                  {item.type === 'file' && (
+                    <>
+                      <button onClick={(e) => { e.stopPropagation(); handlePreview(item); }}>
+                        <Eye size={14} />
+                        <span>Visualizar</span>
+                      </button>
+                      <button onClick={(e) => { e.stopPropagation(); downloadFile(item); }}>
+                        {downloadingItemId === item.id ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+                        <span>{downloadingItemId === item.id ? 'Baixando...' : 'Baixar'}</span>
+                      </button>
+                    </>
+                  )}
+                  {item.type === 'folder' && (
+                    <>
+                      <button onClick={(e) => { e.stopPropagation(); downloadFolder(item); }}>
+                        {downloadingItemId === item.id ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+                        <span>{downloadingItemId === item.id ? 'A baixar...' : 'Baixar Pasta (.zip)'}</span>
+                      </button>
+                      <button onClick={(e) => { e.stopPropagation(); shareFolderContentsRecursively(item); }}>
+                        <Share2 size={14} />
+                        <span>Compartilhar Tudo</span>
+                      </button>
+                    </>
+                  )}
+                  <button onClick={(e) => { e.stopPropagation(); togglePublic(item); }}>
+                    {item.isPublic ? <Globe size={14} /> : <Lock size={14} />}
+                    <span>{item.isPublic ? 'Deixar Privado' : 'Compartilhar'}</span>
+                  </button>
+                  {item.isPublic && (
+                    <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(`${window.location.origin}${window.location.pathname}?share=${item.id}`); alert("Link de partilha copiado!"); setOpenMenuId(null); }}>
+                      <Copy size={14} />
+                      <span>Copiar Link</span>
+                    </button>
+                  )}
+                  <button onClick={(e) => { e.stopPropagation(); deleteItem(item); }} className="danger">
+                    <Trash2 size={14} />
+                    <span>Apagar</span>
                   </button>
                 </div>
-
-                {openMenuId === item.id && (
-                  <div className="dropdown-menu" ref={menuRef}>
-                    {item.type === 'file' && (
-                      <>
-                        <button onClick={(e) => { e.stopPropagation(); handlePreview(item); }}>
-                          <Eye size={14} />
-                          <span>Visualizar</span>
-                        </button>
-                        <button onClick={(e) => { e.stopPropagation(); downloadFile(item); }}>
-                          {downloadingItemId === item.id ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
-                          <span>{downloadingItemId === item.id ? 'Baixando...' : 'Baixar'}</span>
-                        </button>
-                      </>
-                    )}
-                    {item.type === 'folder' && (
-                      <>
-                        <button onClick={(e) => { e.stopPropagation(); downloadFolder(item); }}>
-                          {downloadingItemId === item.id ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
-                          <span>{downloadingItemId === item.id ? 'A baixar...' : 'Baixar Pasta (.zip)'}</span>
-                        </button>
-                        <button onClick={(e) => { e.stopPropagation(); shareFolderContentsRecursively(item); }}>
-                          <Share2 size={14} />
-                          <span>Compartilhar Tudo</span>
-                        </button>
-                      </>
-                    )}
-                    <button onClick={(e) => { e.stopPropagation(); togglePublic(item); }}>
-                      {item.isPublic ? <Globe size={14} /> : <Lock size={14} />}
-                      <span>{item.isPublic ? 'Deixar Privado' : 'Compartilhar'}</span>
-                    </button>
-                    {item.isPublic && (
-                      <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(`${window.location.origin}${window.location.pathname}?share=${item.id}`); alert("Link de partilha copiado!"); setOpenMenuId(null); }}>
-                        <Copy size={14} />
-                        <span>Copiar Link</span>
-                      </button>
-                    )}
-                    <button onClick={(e) => { e.stopPropagation(); deleteItem(item); }} className="danger">
-                      <Trash2 size={14} />
-                      <span>Apagar</span>
-                    </button>
-                  </div>
-                )}
-              </div>
-              
-              <div style={{ marginTop: 'auto' }}>
-                <h3 style={{ fontWeight: '700', color: 'var(--app-text-dark)', fontSize: '0.875rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: '0.25rem', transition: 'color 0.2s ease-in-out' }} className="group-hover-text-blue-600" title={item.name}>
-                  {item.name}
-                </h3>
-                <p style={{ fontSize: '0.625rem', color: 'var(--app-text-medium)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  {item.type === 'folder' ? 'Pasta' : `${(item.size / 1024).toFixed(1)} KB`}
-                </p>
-              </div>
+              )}
             </div>
-          ))}
-        </div>
-      )}
-      <PreviewModal 
-        show={showPreviewModal} 
-        content={previewContent} 
-        onClose={() => { 
-          setShowPreviewModal(false);
-          setPreviewContent(null); 
-        }} 
-      />
-    </div>
-  );
+
+            <div style={{ marginTop: 'auto' }}>
+              <h3 style={{ fontWeight: '700', color: 'var(--app-text-dark)', fontSize: '0.875rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: '0.25rem', transition: 'color 0.2s ease-in-out' }} className="group-hover-text-blue-600" title={item.name}>
+                {item.name}
+              </h3>
+              <p style={{ fontSize: '0.625rem', color: 'var(--app-text-medium)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                {item.type === 'folder' ? 'Pasta' : `${(item.size / 1024).toFixed(1)} KB`}
+              </p>
+            </div>
+          </div>
+        ))}
+      </div>
+    )}
+    <PreviewModal
+      show={showPreviewModal}
+      content={previewContent}
+      onClose={() => {
+        setShowPreviewModal(false);
+        setPreviewContent(null);
+      }}
+    />
+  </div>
+);
 }
 
 function SharedView({ itemId }) {
@@ -1151,7 +1151,7 @@ function SharedView({ itemId }) {
       const res = await fetch(`${API_URL}/download`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filePath: rootSharedItem.vpsPath, originalName: rootSharedItem.name })
+        body: JSON.stringify({ itemId: rootSharedItem.id })
       });
       if (!res.ok) throw new Error("Servidor offline");
       const blob = await res.blob();
@@ -1219,31 +1219,30 @@ function SharedView({ itemId }) {
   };
 
   const downloadSharedFolder = async (folder) => {
-      if (downloading) return;
-      setDownloading(true);
-      try {
-          const res = await fetch(`${API_URL}/download-folder`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                  userId: folder.userId, // Use the folder owner's ID
-                  folderId: folder.id,
-                  folderName: folder.name
-              })
-          });
-          if (!res.ok) {
-              const errData = await res.json();
-              throw new Error(errData.error || "Falha no download da pasta");
-          }
-          const blob = await res.blob();
-          const url = window.URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = `${folder.name}.zip`;
-          document.body.appendChild(a); a.click(); a.remove();
-          window.URL.revokeObjectURL(url);
-      } catch (e) { alert(`Erro ao baixar pasta: ${e.message}`); }
-      setDownloading(false);
+    if (downloading) return;
+    setDownloading(true);
+    try {
+      const res = await fetch(`${API_URL}/download-folder`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          folderId: folder.id,
+          folderName: folder.name
+        })
+      });
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || "Falha no download da pasta");
+      }
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${folder.name}.zip`;
+      document.body.appendChild(a); a.click(); a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (e) { alert(`Erro ao baixar pasta: ${e.message}`); }
+    setDownloading(false);
   };
 
   // Nova função para download de arquivos dentro de uma pasta compartilhada
@@ -1253,7 +1252,7 @@ function SharedView({ itemId }) {
       const res = await fetch(`${API_URL}/download`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filePath: fileItem.vpsPath, originalName: fileItem.name })
+        body: JSON.stringify({ itemId: fileItem.id })
       });
       if (!res.ok) throw new Error("Servidor offline");
       const blob = await res.blob();
@@ -1285,9 +1284,9 @@ function SharedView({ itemId }) {
 
   if (error) return (
     <div className="h-screen flex flex-col items-center justify-center p-6 text-center">
-      <div className="bg-red-50 p-6 rounded-[2rem] text-red-500 mb-6 shadow-inner" style={{backgroundColor: 'var(--app-error-light)', color: 'var(--app-error)'}}><Lock size={64} /></div>
+      <div className="bg-red-50 p-6 rounded-[2rem] text-red-500 mb-6 shadow-inner" style={{ backgroundColor: 'var(--app-error-light)', color: 'var(--app-error)' }}><Lock size={64} /></div>
       <h1 className="text-3xl font-black mb-2 tracking-tight">Acesso Restrito</h1>
-      <p className="text-slate-500 max-w-xs font-medium" style={{color: 'var(--app-text-medium)'}}>Este item é privado ou não existe mais no drive local.</p>
+      <p className="text-slate-500 max-w-xs font-medium" style={{ color: 'var(--app-text-medium)' }}>Este item é privado ou não existe mais no drive local.</p>
     </div>
   );
 
@@ -1301,13 +1300,13 @@ function SharedView({ itemId }) {
           <div style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', width: '7rem', height: '7rem', borderRadius: '2rem', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', margin: '0 auto', marginBottom: '2rem', boxShadow: '0 10px 30px rgba(102,126,234,0.3)' }}>
             <File size={48} fill="white" fillOpacity={0.3} />
           </div>
-          
+
           <h2 style={{ fontSize: '1.75rem', fontWeight: '900', marginBottom: '0.75rem', letterSpacing: '-0.025em', color: '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: '2', WebkitBoxOrient: 'vertical' }}>{rootSharedItem.name}</h2>
-          
+
           <p style={{ color: '#64748b', marginBottom: '1rem', fontSize: '0.875rem', fontWeight: '500' }}>
             Compartilhado de forma segura via <span style={{ fontWeight: '700', color: '#667eea' }}>JustFiles</span>
           </p>
-          
+
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', padding: '1.5rem', background: '#f1f5f9', borderRadius: '1.5rem', marginBottom: '2rem', fontSize: '0.875rem' }}>
             <div>
               <p style={{ color: '#94a3b8', fontWeight: '500', marginBottom: '0.25rem' }}>Tamanho</p>
@@ -1318,10 +1317,10 @@ function SharedView({ itemId }) {
               <p style={{ color: '#1e293b', fontWeight: '700', fontSize: '1.125rem' }}>Arquivo</p>
             </div>
           </div>
-          
-          <button 
-            onClick={downloadRootFile} 
-            disabled={downloading} 
+
+          <button
+            onClick={downloadRootFile}
+            disabled={downloading}
             className="w-full py-4 text-white rounded-1.5rem font-black hover:shadow-lg active:scale-95 transition-all flex items-center justify-center gap-3"
             style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', fontSize: '1.125rem' }}
           >
@@ -1337,7 +1336,7 @@ function SharedView({ itemId }) {
               </>
             )}
           </button>
-          
+
           <p style={{ marginTop: '2rem', fontSize: '0.75rem', color: '#94a3b8', fontWeight: '500', lineHeight: '1.5' }}>
             ✓ Download seguro • ✓ Sem registro necessário • ✓ Sem limite de tempo
           </p>
@@ -1384,11 +1383,11 @@ function SharedView({ itemId }) {
             {sharedBreadcrumbs.map((c, i) => (
               <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: '0' }}>
                 {i > 0 && <ChevronRight size={14} style={{ color: '#cbd5e1' }} />}
-                <button 
-                  onClick={() => navigateSharedFolder(c.id, c.name)} 
+                <button
+                  onClick={() => navigateSharedFolder(c.id, c.name)}
                   style={{
-                    ...(i === sharedBreadcrumbs.length - 1 
-                      ? { background: '#667eea', color: 'white', fontWeight: '700' } 
+                    ...(i === sharedBreadcrumbs.length - 1
+                      ? { background: '#667eea', color: 'white', fontWeight: '700' }
                       : { color: '#64748b', fontWeight: '500' }),
                     padding: '0.5rem 1rem',
                     borderRadius: '0.75rem',
@@ -1415,13 +1414,13 @@ function SharedView({ itemId }) {
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '1.5rem' }}>
               {displayedItems.map((childItem, index) => (
-                <div 
-                  key={childItem.id} 
+                <div
+                  key={childItem.id}
                   className={`animate-fade-in-up`}
-                  style={{ 
-                    display: 'flex', 
-                    flexDirection: 'column', 
-                    height: '240px', 
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    height: '240px',
                     animationDelay: `${index * 50}ms`,
                     background: 'white',
                     borderRadius: '1.5rem',
@@ -1442,15 +1441,15 @@ function SharedView({ itemId }) {
                   onClick={() => childItem.type === 'folder' && navigateSharedFolder(childItem.id, childItem.name)}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
-                    <div 
+                    <div
                       className={childItem.type === 'folder' ? 'bg-amber-100 text-amber-600' : 'bg-blue-100 text-blue-700'}
                       style={{ padding: '0.75rem', borderRadius: '1rem', boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       {getIconForItem(childItem)}
                     </div>
-                    
+
                     {childItem.type === 'file' && (
                       <div style={{ display: 'flex', gap: '0.5rem' }}>
-                        <button 
+                        <button
                           onClick={(e) => { e.stopPropagation(); handleSharedPreview(childItem); }}
                           style={{ background: '#f1f5f9', color: '#667eea', border: 'none', padding: '0.5rem', borderRadius: '0.75rem', cursor: 'pointer', transition: 'all 0.2s' }}
                           onMouseOver={(e) => { e.currentTarget.style.background = '#e2e8f0'; }}
@@ -1459,7 +1458,7 @@ function SharedView({ itemId }) {
                         >
                           <Eye size={16} />
                         </button>
-                        <button 
+                        <button
                           onClick={(e) => { e.stopPropagation(); downloadSharedFile(childItem); }}
                           style={{ background: '#f1f5f9', color: '#667eea', border: 'none', padding: '0.5rem', borderRadius: '0.75rem', cursor: 'pointer', transition: 'all 0.2s' }}
                           onMouseOver={(e) => { e.currentTarget.style.background = '#e2e8f0'; }}
@@ -1471,7 +1470,7 @@ function SharedView({ itemId }) {
                       </div>
                     )}
                   </div>
-                  
+
                   <div style={{ marginTop: 'auto' }}>
                     <h3 style={{ fontWeight: '700', color: '#1e293b', fontSize: '0.875rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: '0.5rem', transition: 'color 0.2s ease-in-out' }} title={childItem.name}>
                       {childItem.name}
@@ -1485,13 +1484,13 @@ function SharedView({ itemId }) {
             </div>
           )}
         </div>
-        <PreviewModal 
-          show={showPreviewModal} 
-          content={previewContent} 
-          onClose={() => { 
+        <PreviewModal
+          show={showPreviewModal}
+          content={previewContent}
+          onClose={() => {
             setShowPreviewModal(false);
-            setPreviewContent(null); 
-          }} 
+            setPreviewContent(null);
+          }}
         />
       </div>
     );
